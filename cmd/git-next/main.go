@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/VectorSophie/git-next/internal/action"
+	"github.com/VectorSophie/git-next/internal/config"
 	"github.com/VectorSophie/git-next/internal/engine"
 	"github.com/VectorSophie/git-next/internal/output"
 	"github.com/VectorSophie/git-next/internal/repo"
@@ -25,6 +26,7 @@ func main() {
 		formatCompact  bool
 		showDebug      bool
 		interactiveAction bool
+		configPath     string
 	)
 
 	flag.BoolVar(&showVersion, "version", false, "Show version information")
@@ -35,6 +37,7 @@ func main() {
 	flag.BoolVar(&formatCompact, "compact", false, "Output compact one-line summary")
 	flag.BoolVar(&showDebug, "debug", false, "Show debug information (repo state)")
 	flag.BoolVar(&interactiveAction, "action", false, "Interactive mode to execute suggested actions")
+	flag.StringVar(&configPath, "config", "", "Path to config file (default: .git-next.yaml or ~/.config/git-next/config.yaml)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `git-next - Git advice that doesn't lie
@@ -72,8 +75,25 @@ the least harmful move based on who has the history.
 		os.Exit(0)
 	}
 
+	// Load configuration
+	var cfg *config.Config
+	var err error
+	if configPath != "" {
+		cfg, err = config.LoadFromPath(configPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		cfg, err = config.Load()
+		if err != nil {
+			// Non-fatal: use defaults
+			cfg = config.Defaults()
+		}
+	}
+
 	// Collect repository state
-	state, err := repo.CollectState()
+	state, err := repo.CollectState(cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -103,7 +123,7 @@ the least harmful move based on who has the history.
 	}
 
 	// Evaluate rules
-	advice := engine.Evaluate(state)
+	advice := engine.Evaluate(state, cfg)
 
 	// Interactive action mode
 	if interactiveAction {
@@ -126,7 +146,7 @@ the least harmful move based on who has the history.
 	} else if formatCompact {
 		outputStr = output.FormatCompact(advice)
 	} else {
-		outputStr = output.FormatHuman(advice, showAll)
+		outputStr = output.FormatHuman(advice, showAll, cfg)
 	}
 
 	fmt.Print(outputStr)

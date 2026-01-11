@@ -9,11 +9,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/VectorSophie/git-next/internal/config"
 	"github.com/VectorSophie/git-next/pkg/model"
 )
 
 // CollectState gathers the current repository state
-func CollectState() (model.RepoState, error) {
+func CollectState(cfg *config.Config) (model.RepoState, error) {
 	state := model.RepoState{}
 
 	// Check if we're in a git repo
@@ -42,7 +43,7 @@ func CollectState() (model.RepoState, error) {
 	}
 
 	// Get protected branch status
-	if err := collectProtectedBranchStatus(&state); err != nil {
+	if err := collectProtectedBranchStatus(&state, cfg); err != nil {
 		return state, err
 	}
 
@@ -62,7 +63,7 @@ func CollectState() (model.RepoState, error) {
 	}
 
 	// Get branch health status (R34-R36)
-	if err := collectBranchHealth(&state); err != nil {
+	if err := collectBranchHealth(&state, cfg); err != nil {
 		return state, err
 	}
 
@@ -174,16 +175,15 @@ func collectDetachedHeadStatus(state *model.RepoState) error {
 	return nil
 }
 
-func collectProtectedBranchStatus(state *model.RepoState) error {
+func collectProtectedBranchStatus(state *model.RepoState, cfg *config.Config) error {
 	branch, err := gitOutput("git", "branch", "--show-current")
 	if err != nil {
 		return err
 	}
 
 	branch = strings.TrimSpace(branch)
-	protectedBranches := []string{"main", "master", "develop", "production"}
 
-	for _, protected := range protectedBranches {
+	for _, protected := range cfg.ProtectedBranches {
 		if branch == protected {
 			state.OnProtectedBranch = true
 			return nil
@@ -309,7 +309,7 @@ func dirExists(path string) bool {
 }
 
 // collectBranchHealth checks branch tracking and cleanup opportunities (R34-R36)
-func collectBranchHealth(state *model.RepoState) error {
+func collectBranchHealth(state *model.RepoState, cfg *config.Config) error {
 	// Skip if on detached HEAD
 	if state.OnDetachedHead {
 		return nil
@@ -329,8 +329,11 @@ func collectBranchHealth(state *model.RepoState) error {
 	mergedOutput, err := gitOutput("git", "branch", "--merged")
 	if err == nil {
 		lines := strings.Split(strings.TrimSpace(mergedOutput), "\n")
-		protectedBranches := map[string]bool{
-			"main": true, "master": true, "develop": true, "production": true,
+
+		// Build protected branches map from config
+		protectedBranches := make(map[string]bool)
+		for _, branch := range cfg.ProtectedBranches {
+			protectedBranches[branch] = true
 		}
 
 		for _, line := range lines {

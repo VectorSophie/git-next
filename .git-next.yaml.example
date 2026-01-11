@@ -1,0 +1,46 @@
+# git-next Configuration Example
+# Place this file as .git-next.yaml in your repository root
+# or as ~/.config/git-next/config.yaml for user-level defaults
+
+# Protected branches - branches that should use merge instead of rebase
+# and where force push is dangerous
+protected_branches:
+  - main
+  - master
+  - develop
+  - staging
+  - production
+
+# Rule configuration
+rules:
+  # Disable specific rules by their ID
+  # Uncomment to disable rules you don't want
+  disabled:
+    # - R007  # Don't nag about untracked files
+    # - R008  # Don't suggest stash pop
+    # - R035  # Don't suggest cleaning up merged branches
+    # - R036  # Don't suggest cleaning up gone remote branches
+
+  # Customize rule parameters/thresholds
+  parameters:
+    # R020: Soft reset threshold
+    # How many commits can be soft reset before suggesting interactive rebase
+    R020:
+      max_commits: 3  # Default: 3
+
+    # R022: Interactive rebase threshold
+    # After how many commits should we suggest interactive rebase instead of soft reset
+    R022:
+      min_commits: 4  # Default: 4 (triggers when CommitCountSincePush > max_commits from R020)
+
+# Advanced: Custom suppression rules
+# WARNING: Modifying these can create conflicting or confusing advice
+# Only change if you understand the suppression system
+suppression:
+  custom:
+    # Example: Remove 'pull' from rebase suppression (allow both rebase and pull suggestions)
+    # rebase: []
+
+    # Example: Make 'commit' suppress 'add' suggestions
+    # commit:
+    #   - add

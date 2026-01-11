@@ -36,7 +36,7 @@ builds:
 archives:
   - id: git-next
     format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}"
     format_overrides:
       - goos: windows
         format: zip
@@ -82,7 +82,7 @@ brews:
 nfpms:
   - id: git-next
     package_name: git-next
-    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}"
     homepage: https://github.com/VectorSophie/git-next
     description: "Git advice that doesn't lie"
     maintainer: VectorSophie <jay7math.com>

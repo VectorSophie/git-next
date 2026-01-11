@@ -1,6 +1,9 @@
 package rules
 
-import "github.com/VectorSophie/git-next/pkg/model"
+import (
+	"github.com/VectorSophie/git-next/internal/config"
+	"github.com/VectorSophie/git-next/pkg/model"
+)
 
 // Rule represents a function that evaluates repository state
 type Rule func(state model.RepoState) bool
@@ -15,7 +18,7 @@ type RuleDef struct {
 }
 
 // AllRules returns all defined rules sorted by priority
-func AllRules() []RuleDef {
+func AllRules(cfg *config.Config) []RuleDef {
 	return []RuleDef{
 		// 100-90: YOU ARE ABOUT TO DO SOMETHING DANGEROUS
 		{
@@ -128,15 +131,15 @@ func AllRules() []RuleDef {
 			Priority:    48,
 		},
 		{
-			ID:          "R020",
-			Check:       R020,
+			ID:    "R020",
+			Check: func(state model.RepoState) bool { return R020(state, cfg) },
 			Command:     "git reset --soft HEAD~N",
 			Description: "Local commits (≤3) can be soft reset",
 			Priority:    45,
 		},
 		{
-			ID:          "R022",
-			Check:       R022,
+			ID:    "R022",
+			Check: func(state model.RepoState) bool { return R022(state, cfg) },
 			Command:     "git rebase -i HEAD~N",
 			Description: "Too many local commits - use interactive rebase",
 			Priority:    42,
@@ -246,16 +249,18 @@ func R036(state model.RepoState) bool {
 // 59-30: WORKFLOW HYGIENE
 
 // R020 - Soft Reset Local Commits
-func R020(state model.RepoState) bool {
+func R020(state model.RepoState, cfg *config.Config) bool {
+	maxCommits := cfg.GetIntParam("R020", "max_commits", 3)
 	return !state.LastCommitPushed &&
 		state.CommitCountSincePush > 0 &&
-		state.CommitCountSincePush <= 3
+		state.CommitCountSincePush <= maxCommits
 }
 
 // R022 - Too Many Commits to Reset
-func R022(state model.RepoState) bool {
+func R022(state model.RepoState, cfg *config.Config) bool {
+	minCommits := cfg.GetIntParam("R022", "min_commits", 4)
 	return !state.LastCommitPushed &&
-		state.CommitCountSincePush > 3
+		state.CommitCountSincePush >= minCommits
 }
 
 // R005 - Pull When Behind and Clean

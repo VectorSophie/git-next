@@ -6,11 +6,12 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/VectorSophie/git-next/internal/config"
 	"github.com/VectorSophie/git-next/pkg/model"
 )
 
 // FormatHuman returns human-readable output
-func FormatHuman(advice []model.Advice, showSuppressed bool) string {
+func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config) string {
 	var sb strings.Builder
 
 	if len(advice) == 0 {
@@ -43,7 +44,7 @@ func FormatHuman(advice []model.Advice, showSuppressed bool) string {
 
 			// Add extra details for branch cleanup rules
 			if a.RuleID == "R035" || a.RuleID == "R036" {
-				branches := getBranchList(a.RuleID)
+				branches := getBranchList(a.RuleID, cfg)
 				if len(branches) > 0 {
 					sb.WriteString(fmt.Sprintf("  Branches: %s\n", strings.Join(branches, ", ")))
 				}
@@ -115,7 +116,7 @@ func FormatCompact(advice []model.Advice) string {
 }
 
 // getBranchList retrieves branch information for branch cleanup rules
-func getBranchList(ruleID string) []string {
+func getBranchList(ruleID string, cfg *config.Config) []string {
 	var branches []string
 
 	if ruleID == "R035" {
@@ -125,8 +126,11 @@ func getBranchList(ruleID string) []string {
 		if err == nil {
 			lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 			currentBranch := getCurrentBranch()
-			protectedBranches := map[string]bool{
-				"main": true, "master": true, "develop": true, "production": true,
+
+			// Build protected branches map from config
+			protectedBranches := make(map[string]bool)
+			for _, branch := range cfg.ProtectedBranches {
+				protectedBranches[branch] = true
 			}
 
 			for _, line := range lines {

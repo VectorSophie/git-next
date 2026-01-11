@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/VectorSophie/git-next/internal/config"
 	"github.com/VectorSophie/git-next/internal/rules"
 	"github.com/VectorSophie/git-next/pkg/model"
 )
@@ -27,12 +28,17 @@ var Suppresses = map[string][]string{
 }
 
 // Evaluate runs all rules against the repo state and returns advice
-func Evaluate(state model.RepoState) []model.Advice {
-	allRules := rules.AllRules()
+func Evaluate(state model.RepoState, cfg *config.Config) []model.Advice {
+	allRules := rules.AllRules(cfg)
 	var advice []model.Advice
 
 	// Evaluate all rules
 	for _, ruleDef := range allRules {
+		// Skip disabled rules
+		if cfg.IsRuleDisabled(ruleDef.ID) {
+			continue
+		}
+
 		if ruleDef.Check(state) {
 			advice = append(advice, model.Advice{
 				RuleID:      ruleDef.ID,
@@ -49,13 +55,16 @@ func Evaluate(state model.RepoState) []model.Advice {
 	sort.Sort(model.ByPriority(advice))
 
 	// Apply suppression rules
-	advice = applySuppression(advice)
+	advice = applySuppression(advice, cfg)
 
 	return advice
 }
 
 // applySuppression applies suppression rules to advice list
-func applySuppression(advice []model.Advice) []model.Advice {
+func applySuppression(advice []model.Advice, cfg *config.Config) []model.Advice {
+	// Merge default suppression map with custom config
+	suppressMap := mergeSuppression(Suppresses, cfg.Suppression.Custom)
+
 	// Track which commands are active (not suppressed)
 	activeCommands := make(map[string]bool)
 
@@ -76,7 +85,7 @@ func applySuppression(advice []model.Advice) []model.Advice {
 		cmd := extractCommand(advice[i].Command)
 
 		// Check if this command suppresses any others
-		if suppressedCmds, exists := Suppresses[cmd]; exists {
+		if suppressedCmds, exists := suppressMap[cmd]; exists {
 			// This command is active, so suppress lower-priority instances of suppressed commands
 			for j := i + 1; j < len(advice); j++ {
 				targetCmd := extractCommand(advice[j].Command)
@@ -92,6 +101,23 @@ func applySuppression(advice []model.Advice) []model.Advice {
 	}
 
 	return advice
+}
+
+// mergeSuppression merges the default suppression map with custom config
+func mergeSuppression(defaults map[string][]string, custom map[string][]string) map[string][]string {
+	result := make(map[string][]string)
+
+	// Copy defaults
+	for k, v := range defaults {
+		result[k] = append([]string{}, v...)
+	}
+
+	// Merge/override with custom
+	for k, v := range custom {
+		result[k] = append([]string{}, v...)
+	}
+
+	return result
 }
 
 // extractCommand extracts the primary git command from a command string

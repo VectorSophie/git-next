@@ -66,18 +66,18 @@ release:
   draft: false
   prerelease: auto
 
-brews:
-  - repository:
-      owner: VectorSophie
-      name: homebrew-tap
-    directory: Formula
-    homepage: https://github.com/VectorSophie/git-next
-    description: "Git advice that doesn't lie"
-    license: MIT
-    test: |
-      system "#{bin}/git-next --version"
-    install: |
-      bin.install "git-next"
+# brews:
+#   - repository:
+#       owner: VectorSophie
+#       name: homebrew-tap
+#     directory: Formula
+#     homepage: https://github.com/VectorSophie/git-next
+#     description: "Git advice that doesn't lie"
+#     license: MIT
+#     test: |
+#       system "#{bin}/git-next --version"
+#     install: |
+#       bin.install "git-next"
 
 nfpms:
   - id: git-next

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yourusername/git-next/internal/action"
-	"github.com/yourusername/git-next/internal/engine"
-	"github.com/yourusername/git-next/internal/output"
-	"github.com/yourusername/git-next/internal/repo"
+	"github.com/VectorSophie/git-next/internal/action"
+	"github.com/VectorSophie/git-next/internal/engine"
+	"github.com/VectorSophie/git-next/internal/output"
+	"github.com/VectorSophie/git-next/internal/repo"
 )
 
 var (

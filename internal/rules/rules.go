@@ -1,6 +1,6 @@
 package rules
 
-import "github.com/yourusername/git-next/pkg/model"
+import "github.com/VectorSophie/git-next/pkg/model"
 
 // Rule represents a function that evaluates repository state
 type Rule func(state model.RepoState) bool

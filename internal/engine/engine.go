@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/yourusername/git-next/internal/rules"
-	"github.com/yourusername/git-next/pkg/model"
+	"github.com/VectorSophie/git-next/internal/rules"
+	"github.com/VectorSophie/git-next/pkg/model"
 )
 
 // Suppresses maps commands to what they suppress

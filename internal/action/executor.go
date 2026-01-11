@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/yourusername/git-next/pkg/model"
+	"github.com/VectorSophie/git-next/pkg/model"
 )
 
 // Execute runs the interactive action selector

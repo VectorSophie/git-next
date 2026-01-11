@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/yourusername/git-next/pkg/model"
+	"github.com/VectorSophie/git-next/pkg/model"
 )
 
 // FormatHuman returns human-readable output

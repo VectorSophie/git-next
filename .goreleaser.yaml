@@ -70,7 +70,7 @@ brews:
   - repository:
       owner: VectorSophie
       name: homebrew-tap
-    folder: Formula
+    directory: Formula
     homepage: https://github.com/VectorSophie/git-next
     description: "Git advice that doesn't lie"
     license: MIT
@@ -85,9 +85,9 @@ nfpms:
     file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     homepage: https://github.com/VectorSophie/git-next
     description: "Git advice that doesn't lie"
-    maintainer: Your Name <your.email@example.com>
+    maintainer: VectorSophie <jay7math.com>
     license: MIT
-    vendor: YourName
+    vendor: VectorSophie
     formats:
       - deb
       - rpm

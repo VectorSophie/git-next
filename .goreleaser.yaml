@@ -1,0 +1,98 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: git-next
+    main: ./cmd/git-next
+    binary: git-next
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "6"
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: git-next
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  github:
+    owner: VectorSophie
+    name: git-next
+  draft: false
+  prerelease: auto
+
+brews:
+  - repository:
+      owner: VectorSophie
+      name: homebrew-tap
+    folder: Formula
+    homepage: https://github.com/VectorSophie/git-next
+    description: "Git advice that doesn't lie"
+    license: MIT
+    test: |
+      system "#{bin}/git-next --version"
+    install: |
+      bin.install "git-next"
+
+nfpms:
+  - id: git-next
+    package_name: git-next
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    homepage: https://github.com/VectorSophie/git-next
+    description: "Git advice that doesn't lie"
+    maintainer: Your Name <your.email@example.com>
+    license: MIT
+    vendor: YourName
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+
+announce:
+  skip: true

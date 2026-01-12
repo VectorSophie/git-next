@@ -67,6 +67,31 @@ func CollectState(cfg *config.Config) (model.RepoState, error) {
 		return state, err
 	}
 
+	// Get dangerous operation status (R037-R041)
+	if err := collectDangerousOperations(&state, cfg); err != nil {
+		return state, err
+	}
+
+	// Get repo integrity status (R042-R046)
+	if err := collectRepoIntegrity(&state); err != nil {
+		return state, err
+	}
+
+	// Get workflow hygiene status (R047-R051)
+	if err := collectWorkflowHygiene(&state, cfg); err != nil {
+		return state, err
+	}
+
+	// Get mild suggestion status (R052-R055)
+	if err := collectMildSuggestions(&state); err != nil {
+		return state, err
+	}
+
+	// Get informational status (R056-R058)
+	if err := collectInformational(&state); err != nil {
+		return state, err
+	}
+
 	return state, nil
 }
 

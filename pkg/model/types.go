@@ -24,6 +24,49 @@ type RepoState struct {
 	NoUpstream           bool
 	MergedBranches       []string
 	GoneBranches         []string
+
+	// Dangerous operations (R037-R041)
+	ForcePushToShared       bool
+	RewrittenPublishedTags  bool
+	ResetOnProtectedBranch  bool
+	SubmoduleRewriteNoUpdate bool
+	AccidentalHistoryRewrite bool
+
+	// Repo integrity (R042-R046)
+	ConflictedFilesStaged    bool
+	ConflictedFiles          []string
+	LargeBinariesWithoutLFS  bool
+	LargeBinaryFiles         []string
+	LineEndingConflict       bool
+	SubmoduleDetachedHead    bool
+	SubmoduleName            string
+	ShallowCloneHistoryOps   bool
+
+	// Workflow hygiene (R047-R051)
+	WorkOnMainNotFeature     bool
+	LongLivedFeatureBranch   bool
+	FeatureBranchAgeDays     int
+	SquashRecommended        bool
+	NoisyCommitCount         int
+	WIPCommitOnShared        bool
+	WIPCommitMessage         string
+	RebaseInsteadOfMerge     bool
+
+	// Mild suggestions (R052-R055)
+	PoorCommitMessage        bool
+	LastCommitMessage        string
+	AmendLastCommitSuggested bool
+	UnpushedLocalTags        bool
+	UnpushedTags             []string
+	StashStackGrowing        bool
+	StashCount               int
+	OldestStashAgeDays       int
+
+	// Informational (R056-R058)
+	RepoSizeGrowingFast      bool
+	RepoSizeMB               int
+	InactiveBranches         []string
+	OnDetachedHeadClean      bool
 }
 
 // Advice represents a single piece of actionable advice

@@ -114,23 +114,38 @@ The `--action` flag enables interactive mode where you can:
 
 Rules are evaluated by priority. Higher priority rules can suppress lower priority ones.
 
-**100–90: You are about to do something dangerous**
+**100–90: "Put the keyboard down"**
+- R037: Force-push to shared branch - this is how trust dies
+- R038: Rewritten published tags - releases are now folklore
+- R039: Reset on protected branch - muscle memory is not a justification
+- R040: Submodule pointer rewrite without update - builds will fail creatively
+- R041: Accidental history rewrite detected - you don't get to pretend this was fine
 - R021: Revert public commits (don't reset)
 - R009: Merge in progress - complete or abort
 - R010: Rebase in progress - complete or abort
 - R011: Cherry-pick in progress - complete or abort
-- R001: Detached HEAD
-- R032: Merge on protected branches
+- R001: Detached HEAD detected
+- R032: Merge on protected branches (not rebase)
 
 **89–60: Repo integrity issues**
-- R006: Branch diverged
+- R042: Conflicted files staged - if <<<<<<< is in the diff, stop pretending
+- R043: Binary files without LFS - Git is not a landfill
+- R044: Line ending normalization conflict - someone's editor declared war
+- R045: Submodule detached HEAD - time capsule mode engaged
+- R046: Shallow clone doing history ops - Git will lie to you politely
+- R006: Branch diverged - need to sync
 - R034: No upstream configured for current branch
-- R031: Rebase feature branches
+- R031: Rebase feature branches - keep linear history
 - R035: Merged branches ready for cleanup
 - R036: Gone remote branches - local cleanup needed
 - R033: Continue with merge if merge history exists
 
 **59–30: Workflow hygiene**
+- R047: Work on main instead of feature branch - you skipped the whole process part
+- R048: Long-lived feature branch - merge debt accumulating interest
+- R049: Squash recommended before merge - many noisy commits
+- R050: WIP commit on shared branch - this is not your personal notebook
+- R051: Rebase recommended instead of merge - keep linear history
 - R005: Pull when behind and clean
 - R004: Push local commits
 - R030: Fast-forward pull
@@ -140,29 +155,19 @@ Rules are evaluated by priority. Higher priority rules can suppress lower priori
 - R002: Stage and commit modified files
 
 **29–10: Mild suggestions**
+- R052: Commit message quality warning - Git logs are for humans
+- R053: Amend last commit suggested - you knew this already
+- R054: Unpushed local tags - Schrödinger's release
+- R055: Stash stack growing - you're hoarding unfinished thoughts
 - R007: Add untracked files
 - R008: Apply stash
 
 **<10: Informational trivia**
-- (Reserved for future low-priority rules)
+- R056: Repo size growing unusually fast - just so you're aware
+- R057: Inactive branches detected - archaeology opportunity
+- R058: Detached HEAD but clean - nothing wrong, just vibes
 
-### New Rules Detail
-
-**Active Operations (R009-R011)**
-
-These rules detect when you have an incomplete git operation. They have the highest priority because finishing (or aborting) these operations is critical before doing anything else:
-
-- **R009: Merge in progress** - Detects when a merge has conflicts or is paused. You must either resolve conflicts and continue, or abort to return to a clean state.
-- **R010: Rebase in progress** - Detects when a rebase is paused (due to conflicts or editing commits). Complete the rebase or abort it.
-- **R011: Cherry-pick in progress** - Detects when a cherry-pick operation is incomplete. Either continue or abort.
-
-**Branch Health (R034-R036)**
-
-These rules help maintain repository cleanliness and proper tracking:
-
-- **R034: No upstream configured** - Your current branch doesn't track a remote branch. This is common after creating a new branch locally. You should set an upstream to enable push/pull operations.
-- **R035: Merged branches ready for cleanup** - Detects local branches that have already been merged into your current branch (excluding protected branches like main/master). These can be safely deleted to reduce clutter.
-- **R036: Gone remote branches** - Detects local branches whose upstream has been deleted on the remote (usually after a PR is merged and branch deleted on GitHub/GitLab). These orphaned local branches should be cleaned up.
+**[View comprehensive rule documentation →](docs/rules/README.md)**
 
 ### Suppression Logic
 
@@ -181,7 +186,39 @@ Commands suppress other commands to prevent conflicting advice:
 
 This ensures you get **one clear path forward**, not a menu of contradictions.
 
-## Protected Branches
+## Configuration
+
+git-next supports YAML-based configuration for customization (v0.2.0+). Create a `.git-next.yaml` file in your repository root or `~/.config/git-next/config.yaml` for user-level defaults.
+
+### Example Configuration
+
+```yaml
+# Protected branches - branches that should use merge instead of rebase
+protected_branches:
+  - main
+  - master
+  - develop
+  - staging
+  - production
+
+# Rule configuration
+rules:
+  # Disable specific rules
+  disabled:
+    - R007  # Don't nag about untracked files
+    - R055  # Don't suggest stash cleanup
+
+  # Customize rule parameters
+  parameters:
+    R020:
+      max_commits: 5  # Allow soft reset up to 5 commits (default: 3)
+    R048:
+      max_days: 21    # Flag feature branches older than 21 days (default: 14)
+```
+
+See `.git-next.yaml.example` for a full configuration template.
+
+### Protected Branches
 
 By default, these branches are considered protected:
 - `main`
@@ -189,7 +226,7 @@ By default, these branches are considered protected:
 - `develop`
 - `production`
 
-On protected branches, `git-next` will always suggest merge over rebase.
+On protected branches, `git-next` will always suggest merge over rebase to preserve merge history. You can customize this list in `.git-next.yaml`.
 
 ## Exit Codes
 
@@ -232,11 +269,26 @@ The tool examines:
 git-next/
 ├── cmd/git-next/       # CLI entrypoint
 ├── internal/
-│   ├── repo/           # Repository state collection
-│   ├── rules/          # Rule definitions
+│   ├── config/         # Configuration system (YAML)
+│   ├── repo/           # Repository state collection (modular)
+│   │   ├── state.go              # Main collector
+│   │   ├── state_dangerous.go   # Dangerous operation detection
+│   │   ├── state_integrity.go   # Repo integrity checks
+│   │   ├── state_workflow.go    # Workflow hygiene
+│   │   └── state_suggestions.go # Suggestions + informational
+│   ├── rules/          # Rule definitions (modular by danger level)
+│   │   ├── rules.go               # Main aggregator
+│   │   ├── rules_dangerous.go     # Priority 100-90
+│   │   ├── rules_integrity.go     # Priority 89-60
+│   │   ├── rules_workflow.go      # Priority 59-30
+│   │   ├── rules_suggestions.go   # Priority 29-10
+│   │   └── rules_informational.go # Priority <10
 │   ├── engine/         # Rule evaluation + suppression
-│   └── output/         # Output formatters
-└── pkg/model/          # Public types
+│   ├── output/         # Output formatters
+│   └── action/         # Interactive action executor
+├── pkg/model/          # Public types
+├── docs/rules/         # Comprehensive rule documentation
+└── .git-next.yaml.example  # Configuration template
 ```
 
 ### Building
@@ -253,10 +305,43 @@ go test ./...
 
 ### Adding Rules
 
-1. Add the rule function in `internal/rules/rules.go`
-2. Add the rule definition to `AllRules()`
-3. Set appropriate priority
-4. Update suppression map if needed
+The rule system is modular - each danger level has its own file:
+
+1. **Choose the appropriate danger level:**
+   - `rules_dangerous.go` (100-90): Dangerous operations
+   - `rules_integrity.go` (89-60): Repo integrity issues
+   - `rules_workflow.go` (59-30): Workflow hygiene
+   - `rules_suggestions.go` (29-10): Mild suggestions
+   - `rules_informational.go` (<10): Informational trivia
+
+2. **Add state collection** in corresponding `internal/repo/state_*.go` file
+
+3. **Add state fields** in `pkg/model/types.go` (grouped by danger level)
+
+4. **Add rule function** in the appropriate `internal/rules/rules_*.go` file
+
+5. **Add rule definition** to the module's function (e.g., `DangerousRules()`)
+
+6. **Update suppression map** in `internal/engine/engine.go` if needed
+
+7. **Document the rule** in `docs/rules/*.md`
+
+Example: Adding a new workflow rule (priority 55):
+```go
+// In internal/rules/rules_workflow.go
+func R999(state model.RepoState) bool {
+    return state.SomeNewCondition
+}
+
+// Add to WorkflowRules()
+{
+    ID:          "R999",
+    Check:       R999,
+    Command:     "git do-something",
+    Description: "Your new rule description",
+    Priority:    55,
+},
+```
 
 ## License
 
@@ -264,6 +349,4 @@ MIT
 
 ## Why This Exists
 
-Git gives you 47 ways to do everything. Most advice says "it depends" or gives you vibes-based heuristics. This tool looks at your actual repository state and tells you what to do. That's it.
-
-No blog posts. No flame wars. Just: "Given who has this history, here's the least harmful move."
+...Dont fuck up?

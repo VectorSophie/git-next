@@ -64,14 +64,12 @@ func detectWorkOnMain(state *model.RepoState, cfg *config.Config) error {
 
 // detectLongLivedBranch checks for feature branches that are too old
 func detectLongLivedBranch(state *model.RepoState, cfg *config.Config) error {
-	// Skip if on protected branch or detached HEAD
 	if state.OnProtectedBranch || state.OnDetachedHead {
 		return nil
 	}
 
-	// Get branch creation date (first commit on this branch)
-	currentBranch, err := gitOutput("git", "branch", "--show-current")
-	if err != nil || strings.TrimSpace(currentBranch) == "" {
+	currentBranch := state.CurrentBranch
+	if currentBranch == "" {
 		return nil
 	}
 

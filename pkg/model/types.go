@@ -2,6 +2,10 @@ package model
 
 // RepoState represents the current state of a Git repository
 type RepoState struct {
+	// Cached early: used by all collectors to avoid repeated subprocess calls
+	GitDir        string
+	CurrentBranch string
+
 	Dirty                bool
 	StagedFiles          int
 	ModifiedFiles        int

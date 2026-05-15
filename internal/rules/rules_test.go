@@ -62,12 +62,6 @@ func TestDangerousRuleChecks(t *testing.T) {
 			noFire: model.RepoState{CherryPickInProgress: false},
 		},
 		{
-			name:   "R021 last commit pushed",
-			check:  R021,
-			fires:  model.RepoState{LastCommitPushed: true},
-			noFire: model.RepoState{LastCommitPushed: false},
-		},
-		{
 			name:   "R032 diverged on protected branch",
 			check:  R032,
 			fires:  model.RepoState{Ahead: 1, Behind: 1, OnProtectedBranch: true},

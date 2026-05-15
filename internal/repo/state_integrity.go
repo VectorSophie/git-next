@@ -73,15 +73,15 @@ func detectConflictedStaged(state *model.RepoState) error {
 
 // detectLargeBinaries checks for large binary files without LFS
 func detectLargeBinaries(state *model.RepoState) error {
-	// Check if LFS is installed
-	_, lfsErr := gitOutput("git", "lfs", "version")
-	hasLFS := lfsErr == nil
-
-	// Get recently added/modified files
+	// Get recently added/modified files first; skip LFS check entirely if empty.
 	recent, err := gitOutput("git", "diff", "--cached", "--name-only", "--diff-filter=AM")
 	if err != nil || strings.TrimSpace(recent) == "" {
 		return nil
 	}
+
+	// Lazy-check for LFS only when there are actually staged files to examine.
+	_, lfsErr := gitOutput("git", "lfs", "version")
+	hasLFS := lfsErr == nil
 
 	files := strings.Split(strings.TrimSpace(recent), "\n")
 	for _, file := range files {
@@ -151,9 +151,13 @@ func detectLineEndingConflict(state *model.RepoState) error {
 	return nil
 }
 
-// detectSubmoduleDetached checks if submodules are in detached HEAD
+// detectSubmoduleDetached checks if submodules are in detached HEAD.
+// Skips the expensive "git submodule status" call when .gitmodules is absent.
 func detectSubmoduleDetached(state *model.RepoState) error {
-	// Check if repo has submodules
+	if _, err := os.Stat(".gitmodules"); err != nil {
+		return nil // no submodules
+	}
+
 	submodules, err := gitOutput("git", "submodule", "status")
 	if err != nil || strings.TrimSpace(submodules) == "" {
 		return nil
@@ -178,12 +182,10 @@ func detectSubmoduleDetached(state *model.RepoState) error {
 
 // detectShallowCloneHistoryOps checks for history operations on shallow clone
 func detectShallowCloneHistoryOps(state *model.RepoState) error {
-	// Check if this is a shallow clone
-	gitDir, err := gitOutput("git", "rev-parse", "--git-dir")
-	if err != nil {
+	gitDir := state.GitDir
+	if gitDir == "" {
 		return nil
 	}
-	gitDir = strings.TrimSpace(gitDir)
 
 	shallowFile := filepath.Join(gitDir, "shallow")
 	if _, err := os.Stat(shallowFile); err != nil {

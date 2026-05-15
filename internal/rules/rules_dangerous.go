@@ -138,8 +138,10 @@ func R041(state model.RepoState) bool {
 }
 
 // R021 - Revert Public Commit (beats reset)
+// This is enforced by guard mode (policy.go). Proactive advice here would fire on every
+// clean repo that has pushed commits, which is useless noise.
 func R021(state model.RepoState) bool {
-	return state.LastCommitPushed
+	return false
 }
 
 // R009 - Merge in Progress

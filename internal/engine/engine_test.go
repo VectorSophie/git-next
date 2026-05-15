@@ -74,8 +74,9 @@ func TestSuppressionMergeInProgressBlocksPush(t *testing.T) {
 	}
 }
 
-func TestSuppressionRevertBlocksReset(t *testing.T) {
-	// R021 (revert, because last commit is pushed) should suppress reset suggestions
+func TestR021NeverFiresProactively(t *testing.T) {
+	// R021 is guard-mode only: proactive advice here would fire on every clean pushed
+	// repo and produce useless noise. The policy.go enforces the actual constraint.
 	state := model.RepoState{
 		LastCommitPushed:     true,
 		CommitCountSincePush: 2,
@@ -83,22 +84,11 @@ func TestSuppressionRevertBlocksReset(t *testing.T) {
 	cfg := config.Defaults()
 	advice := engine.Evaluate(state, cfg)
 
-	var r021Active, r020Suppressed bool
 	for _, a := range advice {
 		if a.RuleID == "R021" && !a.Suppressed {
-			r021Active = true
-		}
-		if a.RuleID == "R020" && a.Suppressed {
-			r020Suppressed = true
+			t.Error("R021 must not fire as proactive advice (guard-mode only)")
 		}
 	}
-
-	if !r021Active {
-		t.Error("R021 (revert) should be active when last commit is pushed")
-	}
-	// R020 (soft reset) should not fire since LastCommitPushed=true means CommitCountSincePush check differs
-	// The suppression itself is tested via the active merge case above
-	_ = r020Suppressed
 }
 
 func TestAdviceCarriesSeverityMetadata(t *testing.T) {

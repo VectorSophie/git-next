@@ -10,7 +10,9 @@ import (
 	"github.com/VectorSophie/git-next/pkg/model"
 )
 
-// collectMildSuggestions detects mild suggestions (R052-R055)
+// collectMildSuggestions detects mild suggestions (R052-R054).
+// R055 (stash stack) is computed inside collectStashStatus to avoid
+// a redundant "git stash list" call.
 func collectMildSuggestions(state *model.RepoState) error {
 	// R052: Poor commit message
 	if err := detectPoorCommitMessage(state); err != nil {
@@ -27,18 +29,14 @@ func collectMildSuggestions(state *model.RepoState) error {
 		return err
 	}
 
-	// R055: Stash stack growing
-	if err := detectStashStack(state); err != nil {
-		return err
-	}
-
 	return nil
 }
 
 // detectPoorCommitMessage checks commit message quality
 func detectPoorCommitMessage(state *model.RepoState) error {
-	// Only check if there are staged files or recent commits
-	if state.StagedFiles == 0 && state.Ahead == 0 {
+	// Only evaluate when commits are ahead and nothing is currently staged.
+	// If staged files exist, the relevant advice is "git commit" (R003), not "amend the last message".
+	if state.StagedFiles > 0 || state.Ahead == 0 {
 		return nil
 	}
 
@@ -52,27 +50,39 @@ func detectPoorCommitMessage(state *model.RepoState) error {
 	state.LastCommitMessage = lastMsg
 
 	// Check for poor quality indicators
-	if len(lastMsg) < 5 || // Too short
-	   lastMsg == "." ||
-	   lastMsg == ".." ||
-	   !startsWithVerb(lastMsg) {
+	if len(lastMsg) < 5 ||
+		lastMsg == "." ||
+		lastMsg == ".." ||
+		!startsWithVerb(lastMsg) {
 		state.PoorCommitMessage = true
 	}
 
 	return nil
 }
 
-// startsWithVerb checks if message starts with a common git verb
+// startsWithVerb checks if message starts with a common git verb or conventional commit prefix.
 func startsWithVerb(msg string) bool {
 	verbs := []string{
 		"add", "fix", "update", "remove", "delete", "create", "implement",
 		"refactor", "improve", "enhance", "optimize", "clean", "bump",
 		"merge", "revert", "upgrade", "downgrade", "move", "rename",
 	}
+	// Conventional commit types (feat:, fix:, docs:, feat(scope):, etc.)
+	conventional := []string{
+		"feat", "fix", "docs", "style", "refactor", "perf",
+		"test", "build", "ci", "chore", "revert",
+	}
 
 	msgLower := strings.ToLower(msg)
+
 	for _, verb := range verbs {
 		if strings.HasPrefix(msgLower, verb+" ") || msgLower == verb {
+			return true
+		}
+	}
+	for _, prefix := range conventional {
+		if strings.HasPrefix(msgLower, prefix+":") ||
+			strings.HasPrefix(msgLower, prefix+"(") {
 			return true
 		}
 	}
@@ -113,60 +123,35 @@ func detectAmendSuggestion(state *model.RepoState) error {
 	return nil
 }
 
-// detectUnpushedTags checks for local tags not on remote
+// detectUnpushedTags checks for local tags not on remote.
+// Uses a single ls-remote call for all tags rather than one per tag.
 func detectUnpushedTags(state *model.RepoState) error {
-	// Get all local tags
-	localTags, err := gitOutput("git", "tag")
-	if err != nil || strings.TrimSpace(localTags) == "" {
+	localTagsOut, err := gitOutput("git", "tag")
+	if err != nil || strings.TrimSpace(localTagsOut) == "" {
 		return nil
 	}
 
-	tags := strings.Split(strings.TrimSpace(localTags), "\n")
-	for _, tag := range tags {
+	// Fetch all remote tags in one call to avoid N network round-trips.
+	remoteTags := make(map[string]bool)
+	if remoteOut, err := gitOutput("git", "ls-remote", "--tags", "origin"); err == nil {
+		for _, line := range strings.Split(remoteOut, "\n") {
+			parts := strings.Fields(line)
+			if len(parts) == 2 && strings.HasPrefix(parts[1], "refs/tags/") {
+				name := strings.TrimPrefix(parts[1], "refs/tags/")
+				name = strings.TrimSuffix(name, "^{}") // strip annotated-tag deref suffix
+				remoteTags[name] = true
+			}
+		}
+	}
+
+	for _, tag := range strings.Split(strings.TrimSpace(localTagsOut), "\n") {
 		tag = strings.TrimSpace(tag)
 		if tag == "" {
 			continue
 		}
-
-		// Check if tag exists on remote
-		_, err := gitOutput("git", "ls-remote", "--tags", "origin", tag)
-		if err != nil {
+		if !remoteTags[tag] {
 			state.UnpushedLocalTags = true
 			state.UnpushedTags = append(state.UnpushedTags, tag)
-		}
-	}
-
-	return nil
-}
-
-// detectStashStack checks for growing stash
-func detectStashStack(state *model.RepoState) error {
-	// Get stash count
-	stashList, err := gitOutput("git", "stash", "list")
-	if err != nil || strings.TrimSpace(stashList) == "" {
-		return nil
-	}
-
-	stashes := strings.Split(strings.TrimSpace(stashList), "\n")
-	state.StashCount = len(stashes)
-
-	if len(stashes) > 3 {
-		// Get oldest stash age from newest stash entry
-		stashDetails, err := gitOutput("git", "stash", "list", "--format=%ct", "--max-count=1")
-		if err == nil {
-			timestamp, err := strconv.ParseInt(strings.TrimSpace(stashDetails), 10, 64)
-			if err == nil {
-				age := time.Since(time.Unix(timestamp, 0))
-				ageDays := int(age.Hours() / 24)
-				state.OldestStashAgeDays = ageDays
-
-				if ageDays > 7 {
-					state.StashStackGrowing = true
-				}
-			}
-		} else {
-			// Fallback: just check stash count
-			state.StashStackGrowing = true
 		}
 	}
 
@@ -195,15 +180,14 @@ func collectInformational(state *model.RepoState) error {
 
 // detectRepoSize checks repository size
 func detectRepoSize(state *model.RepoState) error {
-	gitDir, err := gitOutput("git", "rev-parse", "--git-dir")
-	if err != nil {
+	gitDir := state.GitDir
+	if gitDir == "" {
 		return nil
 	}
-	gitDir = strings.TrimSpace(gitDir)
 
 	// Get .git directory size
 	var totalSize int64
-	err = filepath.Walk(gitDir, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(gitDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip errors
 		}
@@ -213,7 +197,7 @@ func detectRepoSize(state *model.RepoState) error {
 		return nil
 	})
 
-	if err != nil {
+	if walkErr != nil {
 		return nil
 	}
 
@@ -228,42 +212,34 @@ func detectRepoSize(state *model.RepoState) error {
 	return nil
 }
 
-// detectInactiveBranches finds branches with no recent commits
+// detectInactiveBranches finds branches with no recent commits.
+// Uses a single for-each-ref call instead of one git-log per branch.
 func detectInactiveBranches(state *model.RepoState) error {
-	// Get all local branches
-	branches, err := gitOutput("git", "branch", "--format=%(refname:short)")
-	if err != nil {
+	currentBranch := state.CurrentBranch
+
+	// Fetch all branch names + last-committer timestamps in one shot.
+	out, err := gitOutput("git", "for-each-ref",
+		"--format=%(refname:short) %(committerdate:unix)", "refs/heads/")
+	if err != nil || strings.TrimSpace(out) == "" {
 		return nil
 	}
 
-	if strings.TrimSpace(branches) == "" {
-		return nil
-	}
-
-	currentBranch, _ := gitOutput("git", "branch", "--show-current")
-	currentBranch = strings.TrimSpace(currentBranch)
-
-	for _, branch := range strings.Split(strings.TrimSpace(branches), "\n") {
-		branch = strings.TrimSpace(branch)
-		if branch == "" || branch == currentBranch {
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+		branch := parts[0]
+		if branch == currentBranch {
 			continue
 		}
 
-		// Get last commit date on branch
-		dateStr, err := gitOutput("git", "log", "-1", "--format=%ct", branch)
+		timestamp, err := strconv.ParseInt(parts[1], 10, 64)
 		if err != nil {
 			continue
 		}
 
-		timestamp, err := strconv.ParseInt(strings.TrimSpace(dateStr), 10, 64)
-		if err != nil {
-			continue
-		}
-
-		age := time.Since(time.Unix(timestamp, 0))
-		ageDays := int(age.Hours() / 24)
-
-		// If > 90 days old
+		ageDays := int(time.Since(time.Unix(timestamp, 0)).Hours() / 24)
 		if ageDays > 90 {
 			state.InactiveBranches = append(state.InactiveBranches, branch)
 		}

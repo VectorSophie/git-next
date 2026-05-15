@@ -8,91 +8,89 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/VectorSophie/git-next/internal/config"
 	"github.com/VectorSophie/git-next/pkg/model"
 )
 
-// CollectState gathers the current repository state
+// CollectState gathers the current repository state.
+// Independent collectors run concurrently; a second wave runs after
+// they complete because those depend on the first wave's output.
 func CollectState(cfg *config.Config) (model.RepoState, error) {
 	state := model.RepoState{}
 
-	// Check if we're in a git repo
-	if err := runGitCommand("git", "rev-parse", "--git-dir"); err != nil {
+	// Populate the two most-reused values before any goroutine starts.
+	// Every other collector that previously called git for these can now
+	// read directly from state.GitDir / state.CurrentBranch.
+	gitDir, err := gitOutput("git", "rev-parse", "--git-dir")
+	if err != nil {
 		return state, fmt.Errorf("not a git repository")
 	}
+	state.GitDir = strings.TrimSpace(gitDir)
 
-	// Get working tree status
-	if err := collectWorkingTreeStatus(&state); err != nil {
+	currentBranch, _ := gitOutput("git", "branch", "--show-current")
+	state.CurrentBranch = strings.TrimSpace(currentBranch)
+
+	// Protected-branch status is a pure config lookup; do it now so
+	// Phase 1 goroutines can read it without a mutex.
+	for _, b := range cfg.ProtectedBranches {
+		if state.CurrentBranch == b {
+			state.OnProtectedBranch = true
+			break
+		}
+	}
+
+	// Phase 1: collectors with no inter-dependencies.
+	if err := runConcurrent(&state, []func(*model.RepoState) error{
+		collectWorkingTreeStatus,
+		collectBranchStatus,
+		collectStashStatus,
+		collectDetachedHeadStatus,
+		collectPushStatus,
+		collectMergeCommitStatus,
+		collectActiveOperations,
+	}); err != nil {
 		return state, err
 	}
 
-	// Get branch status
-	if err := collectBranchStatus(&state); err != nil {
-		return state, err
-	}
-
-	// Get stash status
-	if err := collectStashStatus(&state); err != nil {
-		return state, err
-	}
-
-	// Get detached HEAD status
-	if err := collectDetachedHeadStatus(&state); err != nil {
-		return state, err
-	}
-
-	// Get protected branch status
-	if err := collectProtectedBranchStatus(&state, cfg); err != nil {
-		return state, err
-	}
-
-	// Get push status
-	if err := collectPushStatus(&state); err != nil {
-		return state, err
-	}
-
-	// Get merge commit status
-	if err := collectMergeCommitStatus(&state); err != nil {
-		return state, err
-	}
-
-	// Get active operation status (R9-R11)
-	if err := collectActiveOperations(&state); err != nil {
-		return state, err
-	}
-
-	// Get branch health status (R34-R36)
-	if err := collectBranchHealth(&state, cfg); err != nil {
-		return state, err
-	}
-
-	// Get dangerous operation status (R037-R041)
-	if err := collectDangerousOperations(&state, cfg); err != nil {
-		return state, err
-	}
-
-	// Get repo integrity status (R042-R046)
-	if err := collectRepoIntegrity(&state); err != nil {
-		return state, err
-	}
-
-	// Get workflow hygiene status (R047-R051)
-	if err := collectWorkflowHygiene(&state, cfg); err != nil {
-		return state, err
-	}
-
-	// Get mild suggestion status (R052-R055)
-	if err := collectMildSuggestions(&state); err != nil {
-		return state, err
-	}
-
-	// Get informational status (R056-R058)
-	if err := collectInformational(&state); err != nil {
+	// Phase 2: collectors that read Phase 1 outputs.
+	if err := runConcurrent(&state, []func(*model.RepoState) error{
+		func(s *model.RepoState) error { return collectBranchHealth(s, cfg) },
+		func(s *model.RepoState) error { return collectDangerousOperations(s, cfg) },
+		collectRepoIntegrity,
+		func(s *model.RepoState) error { return collectWorkflowHygiene(s, cfg) },
+		collectMildSuggestions,
+		collectInformational,
+	}); err != nil {
 		return state, err
 	}
 
 	return state, nil
+}
+
+// runConcurrent launches each fn in its own goroutine, waits for all to
+// finish, and returns the first error encountered (if any).
+// Each fn must write only to fields that no other concurrent fn touches.
+func runConcurrent(state *model.RepoState, fns []func(*model.RepoState) error) error {
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(fns))
+
+	for _, fn := range fns {
+		fn := fn
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := fn(state); err != nil {
+				errCh <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+
+	return <-errCh // nil if channel is empty
 }
 
 func collectWorkingTreeStatus(state *model.RepoState) error {
@@ -114,17 +112,14 @@ func collectWorkingTreeStatus(state *model.RepoState) error {
 		indexStatus := line[0]
 		workTreeStatus := line[1]
 
-		// Staged files (index modified)
 		if indexStatus != ' ' && indexStatus != '?' {
 			state.StagedFiles++
 		}
 
-		// Modified files (work tree modified)
 		if workTreeStatus == 'M' {
 			state.ModifiedFiles++
 		}
 
-		// Untracked files
 		if indexStatus == '?' && workTreeStatus == '?' {
 			state.UntrackedFiles++
 		}
@@ -151,13 +146,11 @@ func collectBranchStatus(state *model.RepoState) error {
 		return nil
 	}
 
-	// Parse ahead/behind counts
 	if strings.Contains(branchLine, "[") {
 		parts := strings.Split(branchLine, "[")
 		if len(parts) > 1 {
 			tracking := strings.TrimSuffix(parts[1], "]")
 
-			// Parse "ahead N, behind M" or "ahead N" or "behind M"
 			if strings.Contains(tracking, "ahead") {
 				aheadParts := strings.Split(tracking, "ahead ")
 				if len(aheadParts) > 1 {
@@ -184,13 +177,39 @@ func collectBranchStatus(state *model.RepoState) error {
 	return nil
 }
 
+// collectStashStatus detects stash presence, count, and stack health (R055).
+// Merging both concerns into one call avoids a redundant "git stash list".
 func collectStashStatus(state *model.RepoState) error {
 	output, err := gitOutput("git", "stash", "list")
 	if err != nil {
 		return err
 	}
 
-	state.HasStash = strings.TrimSpace(output) != ""
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return nil
+	}
+
+	state.HasStash = true
+	stashes := strings.Split(output, "\n")
+	state.StashCount = len(stashes)
+
+	if state.StashCount > 3 {
+		stashDetails, err := gitOutput("git", "stash", "list", "--format=%ct", "--max-count=1")
+		if err == nil {
+			timestamp, err := strconv.ParseInt(strings.TrimSpace(stashDetails), 10, 64)
+			if err == nil {
+				ageDays := int(time.Since(time.Unix(timestamp, 0)).Hours() / 24)
+				state.OldestStashAgeDays = ageDays
+				if ageDays > 7 {
+					state.StashStackGrowing = true
+				}
+			}
+		} else {
+			state.StashStackGrowing = true
+		}
+	}
+
 	return nil
 }
 
@@ -200,55 +219,26 @@ func collectDetachedHeadStatus(state *model.RepoState) error {
 	return nil
 }
 
-func collectProtectedBranchStatus(state *model.RepoState, cfg *config.Config) error {
-	branch, err := gitOutput("git", "branch", "--show-current")
-	if err != nil {
-		return err
-	}
-
-	branch = strings.TrimSpace(branch)
-
-	for _, protected := range cfg.ProtectedBranches {
-		if branch == protected {
-			state.OnProtectedBranch = true
-			return nil
-		}
-	}
-
-	return nil
-}
-
 func collectPushStatus(state *model.RepoState) error {
-	// Check if HEAD has been pushed to remote
 	_, err := gitOutput("git", "rev-parse", "@{u}")
 	if err != nil {
-		// No upstream configured
 		state.LastCommitPushed = false
 		state.CommitCountSincePush = 0
 		return nil
 	}
 
-	// Check if HEAD exists on remote
 	headHash, err := gitOutput("git", "rev-parse", "HEAD")
 	if err != nil {
 		return err
 	}
 	headHash = strings.TrimSpace(headHash)
 
-	remoteHash, err := gitOutput("git", "rev-parse", "@{u}")
-	if err != nil {
-		return err
-	}
-	remoteHash = strings.TrimSpace(remoteHash)
-
-	// Count commits since last push
 	countOutput, err := gitOutput("git", "rev-list", "--count", "@{u}..HEAD")
 	if err == nil {
 		count, _ := strconv.Atoi(strings.TrimSpace(countOutput))
 		state.CommitCountSincePush = count
 	}
 
-	// Check if current HEAD is pushed
 	_, err = gitOutput("git", "branch", "-r", "--contains", headHash)
 	state.LastCommitPushed = err == nil
 
@@ -256,7 +246,6 @@ func collectPushStatus(state *model.RepoState) error {
 }
 
 func collectMergeCommitStatus(state *model.RepoState) error {
-	// Check if there are any merge commits in recent history
 	output, err := gitOutput("git", "log", "--merges", "--oneline", "-n", "10")
 	if err != nil {
 		return err
@@ -284,38 +273,34 @@ func runGitCommand(name string, args ...string) error {
 	return cmd.Run()
 }
 
-// collectActiveOperations detects ongoing git operations (R9-R11)
+// collectActiveOperations detects ongoing git operations (R9-R11).
+// Uses state.GitDir to avoid a second "git rev-parse --git-dir" call.
 func collectActiveOperations(state *model.RepoState) error {
-	// Get git directory path
-	gitDir, err := gitOutput("git", "rev-parse", "--git-dir")
-	if err != nil {
-		return err
+	gitDir := state.GitDir
+	if gitDir == "" {
+		var err error
+		gitDir, err = gitOutput("git", "rev-parse", "--git-dir")
+		if err != nil {
+			return err
+		}
+		gitDir = strings.TrimSpace(gitDir)
 	}
-	gitDir = strings.TrimSpace(gitDir)
 
-	// Check for merge in progress
-	mergeHeadPath := filepath.Join(gitDir, "MERGE_HEAD")
-	if fileExists(mergeHeadPath) {
+	if fileExists(filepath.Join(gitDir, "MERGE_HEAD")) {
 		state.MergeInProgress = true
 	}
 
-	// Check for rebase in progress
-	rebaseMergePath := filepath.Join(gitDir, "rebase-merge")
-	rebaseApplyPath := filepath.Join(gitDir, "rebase-apply")
-	if dirExists(rebaseMergePath) || dirExists(rebaseApplyPath) {
+	if dirExists(filepath.Join(gitDir, "rebase-merge")) || dirExists(filepath.Join(gitDir, "rebase-apply")) {
 		state.RebaseInProgress = true
 	}
 
-	// Check for cherry-pick in progress
-	cherryPickHeadPath := filepath.Join(gitDir, "CHERRY_PICK_HEAD")
-	if fileExists(cherryPickHeadPath) {
+	if fileExists(filepath.Join(gitDir, "CHERRY_PICK_HEAD")) {
 		state.CherryPickInProgress = true
 	}
 
 	return nil
 }
 
-// fileExists checks if a file exists
 func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -324,7 +309,6 @@ func fileExists(path string) bool {
 	return !info.IsDir()
 }
 
-// dirExists checks if a directory exists
 func dirExists(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -333,52 +317,39 @@ func dirExists(path string) bool {
 	return info.IsDir()
 }
 
-// collectBranchHealth checks branch tracking and cleanup opportunities (R34-R36)
+// collectBranchHealth checks branch tracking and cleanup opportunities (R34-R36).
+// Uses state.CurrentBranch to avoid a second "git branch --show-current" call.
 func collectBranchHealth(state *model.RepoState, cfg *config.Config) error {
-	// Skip if on detached HEAD
 	if state.OnDetachedHead {
 		return nil
 	}
 
-	// R034: Check if current branch has upstream
 	_, err := gitOutput("git", "rev-parse", "--abbrev-ref", "@{u}")
 	state.NoUpstream = err != nil
 
-	// R035: Find merged branches (exclude current and protected branches)
-	currentBranch, err := gitOutput("git", "branch", "--show-current")
-	if err != nil {
-		return err
-	}
-	currentBranch = strings.TrimSpace(currentBranch)
+	currentBranch := state.CurrentBranch
 
 	mergedOutput, err := gitOutput("git", "branch", "--merged")
 	if err == nil {
-		lines := strings.Split(strings.TrimSpace(mergedOutput), "\n")
-
-		// Build protected branches map from config
 		protectedBranches := make(map[string]bool)
 		for _, branch := range cfg.ProtectedBranches {
 			protectedBranches[branch] = true
 		}
 
-		for _, line := range lines {
+		for _, line := range strings.Split(strings.TrimSpace(mergedOutput), "\n") {
 			branch := strings.TrimSpace(strings.TrimPrefix(line, "*"))
 			branch = strings.TrimSpace(branch)
 
-			// Exclude current branch and protected branches
 			if branch != "" && branch != currentBranch && !protectedBranches[branch] {
 				state.MergedBranches = append(state.MergedBranches, branch)
 			}
 		}
 	}
 
-	// R036: Find gone branches (remote deleted but local remains)
 	branchOutput, err := gitOutput("git", "branch", "-vv")
 	if err == nil {
-		lines := strings.Split(strings.TrimSpace(branchOutput), "\n")
-		for _, line := range lines {
+		for _, line := range strings.Split(strings.TrimSpace(branchOutput), "\n") {
 			if strings.Contains(line, ": gone]") {
-				// Extract branch name (first field after optional *)
 				parts := strings.Fields(line)
 				if len(parts) >= 2 {
 					branch := parts[0]

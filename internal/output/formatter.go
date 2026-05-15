@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/VectorSophie/git-next/internal/config"
+	"github.com/VectorSophie/git-next/internal/explain"
 	"github.com/VectorSophie/git-next/pkg/model"
 )
 
@@ -51,7 +52,17 @@ func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config,
 				}
 			}
 
-			sb.WriteString(fmt.Sprintf("  Command: %s\n\n", a.Command))
+			sb.WriteString(fmt.Sprintf("  Command: %s\n", a.Command))
+
+			if showExplain {
+				if ex, ok := explain.Lookup(a.RuleID); ok {
+					// Show the first line of the "why" as an inline hint.
+					why := strings.SplitN(strings.TrimSpace(ex.Why), "\n", 2)[0]
+					sb.WriteString(fmt.Sprintf("  Why: %s\n", why))
+				}
+			}
+
+			sb.WriteString("\n")
 		}
 	}
 

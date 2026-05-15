@@ -62,14 +62,18 @@ go build -o git-next cmd/git-next/main.go
 ## Usage
 
 ```bash
-git-next                          # Show what to do next
+git-next                          # Show what to do next (medium+ severity)
+git-next --verbose                # Show all severities including low/info hints
 git-next --all                    # Include suppressed advice
 git-next --explain                # Add a "why" line under each rule
 git-next --json                   # Structured JSON output
 git-next --compact                # One-line summary (good for PS1)
 git-next --agent                  # Machine-readable JSON for AI agents
 git-next --action                 # Interactive: select and run an action
+git-next --network                # Include unpushed-tags check (network call)
 ```
+
+By default `git-next` shows **medium and above** (skipping low-severity and informational hints). Use `--verbose` or `--all` to see everything.
 
 ### For coding agents
 
@@ -266,6 +270,7 @@ When one command is already the correct action, `git-next` suppresses conflictin
 - `merge` suppresses `rebase` (chosen strategy wins)
 - `rebase` suppresses `pull` (rebase handles sync)
 - `reset` suppresses `commit` (undoing commits)
+- `commit` suppresses `add` (staged files take priority over untracked files)
 
 ---
 

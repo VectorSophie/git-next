@@ -16,7 +16,11 @@ git commit --amend
 **What it detects:**
 - Commit message too short (< 5 characters)
 - Message is just "." or ".."
-- Message doesn't start with a verb
+- Message doesn't start with a verb or a conventional commit prefix
+
+**Accepted prefixes:**
+- Imperative verbs: Add, Fix, Update, Remove, Refactor, …
+- Conventional commits: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `perf:`, `test:`, `build:`, `ci:`, `chore:`, `revert:` (and scoped variants like `feat(api):`)
 
 **Why it matters:**
 Commit messages are the only documentation for why code changed. Good messages help with:
@@ -62,6 +66,12 @@ git commit --amend -m "Better message"
 ```
 git push --tags
 ```
+
+> **Requires `--network`**: This rule makes a `git ls-remote --tags origin` call. It is skipped by default to keep `git-next` offline-safe. Enable with:
+> ```bash
+> git-next --network
+> # or add `network: true` to .git-next.yaml
+> ```
 
 **What it detects:**
 - Local tags that don't exist on remote

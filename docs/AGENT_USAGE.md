@@ -175,7 +175,7 @@ git() {
 }
 ```
 
-**Caveats:** This adds a `CollectState` call (~50ms) to every git invocation. Disable for bulk operations with `command git <cmd>`.
+**Caveats:** This adds a `CollectState` call to every git invocation (2–4 s on Windows, ~50–200 ms on Linux/macOS). Disable for bulk operations with `command git <cmd>`.
 
 ---
 
@@ -201,6 +201,6 @@ NEXT=$(git-next --agent | jq -r '.recommended_next_command // empty')
 
 - **Deterministic**: same repository state always produces the same output.
 - **Exit codes**: `git-next --agent` exits 0 when status is `safe`, exits 1 otherwise.
-- **No network calls**: all analysis is local git commands.
+- **No network calls by default**: all analysis uses local git commands. Pass `--network` (or `network: true` in config) to enable R054 unpushed-tags detection, which calls `git ls-remote --tags origin`.
 - **Schema stability**: `schema_version` will increment on breaking changes; fields will not be removed within a version.
 - **Suppression is applied**: `rules_triggered` contains only active (non-suppressed) rules. You will never see both `merge` and `rebase` recommended simultaneously.

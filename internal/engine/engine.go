@@ -25,6 +25,8 @@ var Suppresses = map[string][]string{
 	"merge":  {"rebase"},
 	"rebase": {"pull"},
 	"reset":  {"commit"},
+	// When staged files exist (commit is the right move), suppress untracked-file noise.
+	"commit": {"add"},
 }
 
 // Evaluate runs all rules against the repo state and returns advice

@@ -61,7 +61,7 @@ func CollectState(cfg *config.Config) (model.RepoState, error) {
 		func(s *model.RepoState) error { return collectDangerousOperations(s, cfg) },
 		collectRepoIntegrity,
 		func(s *model.RepoState) error { return collectWorkflowHygiene(s, cfg) },
-		collectMildSuggestions,
+		func(s *model.RepoState) error { return collectMildSuggestions(s, cfg) },
 		collectInformational,
 	}); err != nil {
 		return state, err

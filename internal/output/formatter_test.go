@@ -22,7 +22,7 @@ func makeAdvice(id, cmd, desc string, priority int, suppressed bool, severity st
 }
 
 func TestFormatHumanCleanRepo(t *testing.T) {
-	result := output.FormatHuman(nil, false, config.Defaults(), false)
+	result := output.FormatHuman(nil, false, config.Defaults(), false, "info")
 	if !strings.Contains(result, "clean") {
 		t.Errorf("expected 'clean' in output for no advice, got: %q", result)
 	}
@@ -32,7 +32,7 @@ func TestFormatHumanShowsActiveAdvice(t *testing.T) {
 	advice := []model.Advice{
 		makeAdvice("R003", "git commit", "Staged files waiting for commit", 38, false, "medium"),
 	}
-	result := output.FormatHuman(advice, false, config.Defaults(), false)
+	result := output.FormatHuman(advice, false, config.Defaults(), false, "info")
 	if !strings.Contains(result, "R003") {
 		t.Errorf("expected R003 in output, got: %q", result)
 	}
@@ -46,7 +46,7 @@ func TestFormatHumanHidesSuppressedByDefault(t *testing.T) {
 		makeAdvice("R003", "git commit", "Staged files", 38, false, "medium"),
 		makeAdvice("R004", "git push", "Push commits", 50, true, "medium"),
 	}
-	result := output.FormatHuman(advice, false, config.Defaults(), false)
+	result := output.FormatHuman(advice, false, config.Defaults(), false, "info")
 	if strings.Contains(result, "R004") {
 		t.Error("suppressed advice should be hidden by default")
 	}
@@ -57,9 +57,26 @@ func TestFormatHumanShowsSuppressedWithFlag(t *testing.T) {
 		makeAdvice("R003", "git commit", "Staged files", 38, false, "medium"),
 		makeAdvice("R004", "git push", "Push commits", 50, true, "medium"),
 	}
-	result := output.FormatHuman(advice, true, config.Defaults(), false)
+	result := output.FormatHuman(advice, true, config.Defaults(), false, "info")
 	if !strings.Contains(result, "R004") {
 		t.Error("suppressed advice should be visible with showSuppressed=true")
+	}
+}
+
+func TestFormatHumanHidesLowBelowMinSeverity(t *testing.T) {
+	advice := []model.Advice{
+		makeAdvice("R003", "git commit", "Staged files", 38, false, "medium"),
+		makeAdvice("R007", "git add", "Untracked files", 20, false, "low"),
+	}
+	result := output.FormatHuman(advice, false, config.Defaults(), false, "medium")
+	if !strings.Contains(result, "R003") {
+		t.Error("expected medium-severity R003 to be visible")
+	}
+	if strings.Contains(result, "R007") {
+		t.Error("low-severity R007 should be hidden when minSeverity=medium")
+	}
+	if !strings.Contains(result, "hint") {
+		t.Error("expected hidden-hint footer when low rules are filtered")
 	}
 }
 

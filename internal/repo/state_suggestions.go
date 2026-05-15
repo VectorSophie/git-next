@@ -7,13 +7,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VectorSophie/git-next/internal/config"
 	"github.com/VectorSophie/git-next/pkg/model"
 )
 
 // collectMildSuggestions detects mild suggestions (R052-R054).
 // R055 (stash stack) is computed inside collectStashStatus to avoid
 // a redundant "git stash list" call.
-func collectMildSuggestions(state *model.RepoState) error {
+// R054 (unpushed tags) requires a network call and is skipped unless cfg.Network is true.
+func collectMildSuggestions(state *model.RepoState, cfg *config.Config) error {
 	// R052: Poor commit message
 	if err := detectPoorCommitMessage(state); err != nil {
 		return err
@@ -24,9 +26,11 @@ func collectMildSuggestions(state *model.RepoState) error {
 		return err
 	}
 
-	// R054: Unpushed local tags
-	if err := detectUnpushedTags(state); err != nil {
-		return err
+	// R054: Unpushed local tags (requires network — skip unless --network / network: true)
+	if cfg.Network {
+		if err := detectUnpushedTags(state); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package config
 // Config represents the git-next configuration
 type Config struct {
 	ProtectedBranches []string          `yaml:"protected_branches"`
+	Network           bool              `yaml:"network"`    // enable network calls (git ls-remote); off by default
 	Rules             RuleConfig        `yaml:"rules"`
 	Suppression       SuppressionConfig `yaml:"suppression"`
 }

@@ -1,7 +1,9 @@
 package repo
 
 import (
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/VectorSophie/git-next/internal/config"
 	"github.com/VectorSophie/git-next/pkg/model"
@@ -110,21 +112,36 @@ func detectRewrittenTags(state *model.RepoState) error {
 	return nil
 }
 
-// detectResetOnProtected checks for git reset on protected branches
+// detectResetOnProtected checks for recent git reset on protected branches.
+// Uses a configurable time window (R039.max_age_hours, default 168 = 7 days)
+// so stale reflog entries from intentional historical resets don't fire.
 func detectResetOnProtected(state *model.RepoState, cfg *config.Config) error {
 	if !state.OnProtectedBranch {
 		return nil
 	}
 
-	// Check reflog for reset operations
-	reflog, err := gitOutput("git", "reflog", "-5", "--format=%gs")
+	maxAgeHours := cfg.GetIntParam("R039", "max_age_hours", 168)
+	cutoff := time.Now().Unix() - int64(maxAgeHours)*3600
+
+	// Format: "<unix-timestamp>||<reflog subject>" for unambiguous parsing.
+	reflog, err := gitOutput("git", "reflog", "-10", "--format=%ct||%gs")
 	if err != nil {
 		return nil
 	}
 
-	lines := strings.Split(strings.TrimSpace(reflog), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "reset:") {
+	for _, line := range strings.Split(strings.TrimSpace(reflog), "\n") {
+		parts := strings.SplitN(line, "||", 2)
+		if len(parts) < 2 {
+			continue
+		}
+		ts, err := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64)
+		if err != nil {
+			continue
+		}
+		if ts < cutoff {
+			break // entries are newest-first; older than window, stop
+		}
+		if strings.Contains(parts[1], "reset:") {
 			state.ResetOnProtectedBranch = true
 			break
 		}

@@ -11,9 +11,24 @@ import (
 	"github.com/VectorSophie/git-next/pkg/model"
 )
 
+// severityAtLeast returns true when a is at least as severe as min.
+// Delegates to the severityRank function already defined in agent.go.
+func severityAtLeast(a, min string) bool {
+	return severityRank(a) >= severityRank(min)
+}
+
 // FormatHuman returns human-readable output.
-// showExplain adds a brief "why" line under each active rule (populated in Phase 3).
-func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config, showExplain bool) string {
+//
+// showSuppressed: include suppressed rules in the listing.
+// showExplain: print a "why" line under each active rule.
+// minSeverity: hide rules below this level (show count in footer instead).
+//   - "medium" is the default (hides low/info noise)
+//   - "info" shows everything
+func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config, showExplain bool, minSeverity string) string {
+	if minSeverity == "" {
+		minSeverity = "medium"
+	}
+
 	var sb strings.Builder
 
 	if len(advice) == 0 {
@@ -26,6 +41,7 @@ func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config,
 
 	activeCount := 0
 	suppressedCount := 0
+	hiddenCount := 0 // active but below minSeverity
 
 	for _, a := range advice {
 		if a.Suppressed {
@@ -35,6 +51,12 @@ func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config,
 			}
 		} else {
 			activeCount++
+			if !severityAtLeast(a.Severity, minSeverity) {
+				hiddenCount++
+				if !showSuppressed {
+					continue
+				}
+			}
 		}
 
 		if a.Suppressed {
@@ -44,7 +66,6 @@ func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config,
 		} else {
 			sb.WriteString(fmt.Sprintf("→ [%s] %s\n", a.RuleID, a.Description))
 
-			// Add extra details for branch cleanup rules
 			if a.RuleID == "R035" || a.RuleID == "R036" {
 				branches := getBranchList(a.RuleID, cfg)
 				if len(branches) > 0 {
@@ -56,7 +77,6 @@ func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config,
 
 			if showExplain {
 				if ex, ok := explain.Lookup(a.RuleID); ok {
-					// Show the first line of the "why" as an inline hint.
 					why := strings.SplitN(strings.TrimSpace(ex.Why), "\n", 2)[0]
 					sb.WriteString(fmt.Sprintf("  Why: %s\n", why))
 				}
@@ -67,13 +87,19 @@ func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config,
 	}
 
 	sb.WriteString("───────────────────────────────\n")
-	if suppressedCount > 0 {
-		sb.WriteString(fmt.Sprintf("Active: %d  Suppressed: %d\n", activeCount, suppressedCount))
-		if !showSuppressed {
-			sb.WriteString("(Use --all to show suppressed advice)\n")
-		}
+
+	visibleActive := activeCount - hiddenCount
+	if suppressedCount > 0 && showSuppressed {
+		sb.WriteString(fmt.Sprintf("Active: %d  Suppressed: %d\n", visibleActive, suppressedCount))
+	} else if suppressedCount > 0 {
+		sb.WriteString(fmt.Sprintf("Active: %d  Suppressed: %d\n", visibleActive, suppressedCount))
+		sb.WriteString("(Use --all to show suppressed advice)\n")
 	} else {
-		sb.WriteString(fmt.Sprintf("Total: %d action(s)\n", activeCount))
+		sb.WriteString(fmt.Sprintf("Total: %d action(s)\n", visibleActive))
+	}
+
+	if hiddenCount > 0 && !showSuppressed {
+		sb.WriteString(fmt.Sprintf("+ %d low-severity hint(s) hidden  (use --verbose to see)\n", hiddenCount))
 	}
 
 	return sb.String()
@@ -132,14 +158,12 @@ func getBranchList(ruleID string, cfg *config.Config) []string {
 	var branches []string
 
 	if ruleID == "R035" {
-		// Get merged branches
 		cmd := exec.Command("git", "branch", "--merged")
 		output, err := cmd.Output()
 		if err == nil {
 			lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 			currentBranch := getCurrentBranch()
 
-			// Build protected branches map from config
 			protectedBranches := make(map[string]bool)
 			for _, branch := range cfg.ProtectedBranches {
 				protectedBranches[branch] = true
@@ -154,7 +178,6 @@ func getBranchList(ruleID string, cfg *config.Config) []string {
 			}
 		}
 	} else if ruleID == "R036" {
-		// Get gone branches
 		cmd := exec.Command("git", "branch", "-vv")
 		output, err := cmd.Output()
 		if err == nil {
@@ -181,7 +204,6 @@ func getBranchList(ruleID string, cfg *config.Config) []string {
 	return branches
 }
 
-// getCurrentBranch gets the current git branch name
 func getCurrentBranch() string {
 	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
 	output, err := cmd.Output()

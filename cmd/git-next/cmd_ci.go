@@ -33,14 +33,16 @@ func runCI(args []string) {
 	fs := flag.NewFlagSet("ci", flag.ExitOnError)
 	failOn := fs.String("fail-on", "all", "Minimum severity that causes exit 1 (critical|high|medium|low|all)")
 	format := fs.String("format", "human", "Output format (human|github)")
+	networkEnabled := fs.Bool("network", false, "Enable network calls (unpushed-tags check via git ls-remote)")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, `git-next ci [--fail-on <tier>] [--format <format>]
+		fmt.Fprintln(os.Stderr, `git-next ci [--fail-on <tier>] [--format <format>] [--network]
 
 Run git-next as a CI gate. Exits 1 when rules matching --fail-on fire.
 
 Examples:
   git-next ci --fail-on high
-  git-next ci --fail-on critical --format github`)
+  git-next ci --fail-on critical --format github
+  git-next ci --fail-on high --network`)
 	}
 	if err := fs.Parse(args); err != nil {
 		os.Exit(1)
@@ -55,6 +57,9 @@ Examples:
 	cfg, err := config.Load()
 	if err != nil {
 		cfg = config.Defaults()
+	}
+	if *networkEnabled {
+		cfg.Network = true
 	}
 
 	state, err := repo.CollectState(cfg)

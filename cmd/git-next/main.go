@@ -47,12 +47,14 @@ func main() {
 	var (
 		showVersion       bool
 		showAll           bool
+		showVerbose       bool
 		formatJSON        bool
 		formatCompact     bool
 		agentMode         bool
 		showDebug         bool
 		showExplain       bool
 		interactiveAction bool
+		networkEnabled    bool
 		configPath        string
 	)
 
@@ -60,12 +62,15 @@ func main() {
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
 	flag.BoolVar(&showAll, "all", false, "Show suppressed advice")
 	flag.BoolVar(&showAll, "a", false, "Show suppressed advice (shorthand)")
+	flag.BoolVar(&showVerbose, "verbose", false, "Show all severities including low/info hints")
+	flag.BoolVar(&showVerbose, "V", false, "Show all severities including low/info hints (shorthand)")
 	flag.BoolVar(&formatJSON, "json", false, "Output in JSON format")
 	flag.BoolVar(&formatCompact, "compact", false, "Output compact one-line summary")
 	flag.BoolVar(&agentMode, "agent", false, "Output agent-compatible JSON for coding assistants and CI bots")
 	flag.BoolVar(&showDebug, "debug", false, "Show debug information (repo state)")
 	flag.BoolVar(&showExplain, "explain", false, "Show explanation for each active rule")
 	flag.BoolVar(&interactiveAction, "action", false, "Interactive mode to execute suggested actions")
+	flag.BoolVar(&networkEnabled, "network", false, "Enable network calls (git ls-remote for R054 unpushed-tags check)")
 	flag.StringVar(&configPath, "config", "", "Path to config file (default: .git-next.yaml or ~/.config/git-next/config.yaml)")
 
 	flag.Usage = func() {
@@ -78,12 +83,14 @@ Usage:
 Options:
   -v, --version     Show version information
   -a, --all         Show suppressed advice
+  -V, --verbose     Show all severities including low/info hints (default: medium+)
   --json            Output in JSON format
   --compact         Output compact one-line summary
   --agent           Machine-readable JSON for coding agents and CI bots
   --explain         Show explanation for each active rule
   --debug           Show debug information (repo state)
   --action          Interactive mode to execute suggested actions
+  --network         Enable network calls (checks unpushed tags via git ls-remote)
 
 Subcommands:
   guard -- <cmd>    Check whether a git command is safe to run
@@ -94,12 +101,14 @@ Subcommands:
   completion        Print shell completion script (bash|zsh|fish)
 
 Examples:
-  git-next                         # Show current advice
+  git-next                         # Show current advice (medium+ severity)
+  git-next --verbose               # Show all advice including low/info hints
   git-next --agent                 # Machine-readable output for AI agents
   git-next guard -- git push -f    # Check whether a command is safe
   git-next ci --fail-on high       # CI gate, fail on high+ severity
   git-next hook install            # Install pre-push hook
   git-next explain R037            # Explain a specific rule
+  git-next --network               # Include unpushed-tags check (network call)
 
 `)
 	}
@@ -128,6 +137,11 @@ Examples:
 			// Non-fatal: use defaults
 			cfg = config.Defaults()
 		}
+	}
+
+	// CLI flags override config file values.
+	if networkEnabled {
+		cfg.Network = true
 	}
 
 	// Collect repository state
@@ -191,7 +205,11 @@ Examples:
 	} else if formatCompact {
 		outputStr = output.FormatCompact(advice)
 	} else {
-		outputStr = output.FormatHuman(advice, showAll, cfg, showExplain)
+		minSev := "medium"
+		if showAll || showVerbose {
+			minSev = "info" // show everything
+		}
+		outputStr = output.FormatHuman(advice, showAll, cfg, showExplain, minSev)
 	}
 
 	fmt.Print(outputStr)

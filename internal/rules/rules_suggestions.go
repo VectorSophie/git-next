@@ -13,6 +13,8 @@ func SuggestionRules() []RuleDef {
 			Command:     "git commit --amend",
 			Description: "Commit message quality warning - Git logs are for humans, allegedly",
 			Priority:    25,
+			Severity:    "low",
+			Destructive: false,
 		},
 		{
 			ID:          "R053",
@@ -20,6 +22,8 @@ func SuggestionRules() []RuleDef {
 			Command:     "git commit --amend",
 			Description: "Amend last commit suggested - you knew this already",
 			Priority:    23,
+			Severity:    "low",
+			Destructive: false,
 		},
 		{
 			ID:          "R054",
@@ -27,6 +31,8 @@ func SuggestionRules() []RuleDef {
 			Command:     "git push --tags",
 			Description: "Unpushed local tags - Schrödinger's release",
 			Priority:    21,
+			Severity:    "low",
+			Destructive: false,
 		},
 		{
 			ID:          "R007",
@@ -34,6 +40,8 @@ func SuggestionRules() []RuleDef {
 			Command:     "git add <files>",
 			Description: "Untracked files present",
 			Priority:    20,
+			Severity:    "low",
+			Destructive: false,
 		},
 		{
 			ID:          "R055",
@@ -41,6 +49,8 @@ func SuggestionRules() []RuleDef {
 			Command:     "git stash pop OR git stash clear",
 			Description: "Stash stack growing - you're hoarding unfinished thoughts",
 			Priority:    18,
+			Severity:    "low",
+			Destructive: false,
 		},
 		{
 			ID:          "R008",
@@ -48,6 +58,8 @@ func SuggestionRules() []RuleDef {
 			Command:     "git stash pop",
 			Description: "Stash exists - consider applying",
 			Priority:    15,
+			Severity:    "low",
+			Destructive: false,
 		},
 	}
 }

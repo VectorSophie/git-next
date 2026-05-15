@@ -47,6 +47,8 @@ func Evaluate(state model.RepoState, cfg *config.Config) []model.Advice {
 				Priority:    ruleDef.Priority,
 				Suppressed:  false,
 				Reason:      "",
+				Severity:    ruleDef.Severity,
+				Destructive: ruleDef.Destructive,
 			})
 		}
 	}

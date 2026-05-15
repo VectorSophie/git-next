@@ -13,6 +13,8 @@ func InformationalRules() []RuleDef {
 			Command:     "git gc --aggressive",
 			Description: "Repo size growing unusually fast - just so you're aware",
 			Priority:    9,
+			Severity:    "info",
+			Destructive: false,
 		},
 		{
 			ID:          "R057",
@@ -20,6 +22,8 @@ func InformationalRules() []RuleDef {
 			Command:     "git branch -d <branch>",
 			Description: "Inactive branches detected - archaeology opportunity",
 			Priority:    8,
+			Severity:    "info",
+			Destructive: false,
 		},
 		{
 			ID:          "R058",
@@ -27,6 +31,8 @@ func InformationalRules() []RuleDef {
 			Command:     "git checkout <branch>",
 			Description: "Detached HEAD but clean - nothing wrong, just vibes",
 			Priority:    5,
+			Severity:    "info",
+			Destructive: false,
 		},
 	}
 }

@@ -14,6 +14,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "# DO NOT git push --force on shared branches!",
 			Description: "Force-push to shared branch - this is how trust dies",
 			Priority:    100,
+			Severity:    "critical",
+			Destructive: true,
 		},
 		{
 			ID:          "R038",
@@ -21,6 +23,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "# DO NOT rewrite published tags!",
 			Description: "Rewrite published tags - releases are now folklore",
 			Priority:    100,
+			Severity:    "critical",
+			Destructive: true,
 		},
 		{
 			ID:          "R039",
@@ -28,6 +32,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "# DO NOT reset on protected branches!",
 			Description: "Reset on protected branch - muscle memory is not a justification",
 			Priority:    100,
+			Severity:    "critical",
+			Destructive: true,
 		},
 		{
 			ID:          "R040",
@@ -35,6 +41,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "git submodule update --remote",
 			Description: "Submodule pointer rewrite without update - builds will fail creatively",
 			Priority:    100,
+			Severity:    "critical",
+			Destructive: false,
 		},
 		{
 			ID:          "R041",
@@ -42,6 +50,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "# Accidental history rewrite detected - you don't get to pretend this was fine",
 			Description: "Rebase or filter-branch after commits pulled by others",
 			Priority:    100,
+			Severity:    "critical",
+			Destructive: true,
 		},
 		{
 			ID:          "R021",
@@ -49,6 +59,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "git revert HEAD",
 			Description: "Last commit was pushed - use revert instead of reset",
 			Priority:    100,
+			Severity:    "critical",
+			Destructive: false,
 		},
 		{
 			ID:          "R009",
@@ -56,6 +68,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "git merge --continue OR git merge --abort",
 			Description: "Merge in progress - complete or abort",
 			Priority:    98,
+			Severity:    "critical",
+			Destructive: false,
 		},
 		{
 			ID:          "R010",
@@ -63,6 +77,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "git rebase --continue OR git rebase --abort",
 			Description: "Rebase in progress - complete or abort",
 			Priority:    97,
+			Severity:    "critical",
+			Destructive: false,
 		},
 		{
 			ID:          "R011",
@@ -70,6 +86,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "git cherry-pick --continue OR git cherry-pick --abort",
 			Description: "Cherry-pick in progress - complete or abort",
 			Priority:    96,
+			Severity:    "critical",
+			Destructive: false,
 		},
 		{
 			ID:          "R001",
@@ -77,6 +95,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "git checkout <branch>",
 			Description: "Detached HEAD detected - checkout a branch",
 			Priority:    95,
+			Severity:    "critical",
+			Destructive: false,
 		},
 		{
 			ID:          "R032",
@@ -84,6 +104,8 @@ func DangerousRules(cfg *config.Config) []RuleDef {
 			Command:     "git merge origin/<branch>",
 			Description: "Diverged on protected branch - merge instead of rebase",
 			Priority:    90,
+			Severity:    "critical",
+			Destructive: false,
 		},
 	}
 }

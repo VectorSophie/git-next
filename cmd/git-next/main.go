@@ -146,7 +146,7 @@ the least harmful move based on who has the history.
 	} else if formatCompact {
 		outputStr = output.FormatCompact(advice)
 	} else {
-		outputStr = output.FormatHuman(advice, showAll, cfg)
+		outputStr = output.FormatHuman(advice, showAll, cfg, false)
 	}
 
 	fmt.Print(outputStr)

@@ -15,6 +15,8 @@ type RuleDef struct {
 	Command     string
 	Description string
 	Priority    int
+	Severity    string // "critical", "high", "medium", "low", "info"
+	Destructive bool   // true if the suggested command can rewrite or delete history
 }
 
 // AllRules returns all defined rules sorted by priority

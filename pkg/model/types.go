@@ -77,6 +77,8 @@ type Advice struct {
 	Priority    int
 	Suppressed  bool
 	Reason      string
+	Severity    string // "critical", "high", "medium", "low", "info"
+	Destructive bool   // true if the suggested command can rewrite or delete history
 }
 
 // ByPriority implements sort.Interface for []Advice based on Priority field

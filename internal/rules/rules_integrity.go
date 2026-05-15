@@ -13,6 +13,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "# Remove conflict markers from files before committing",
 			Description: "Conflicted files staged - if <<<<<<< is in the diff, stop pretending",
 			Priority:    89,
+			Severity:    "high",
+			Destructive: false,
 		},
 		{
 			ID:          "R043",
@@ -20,6 +22,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "git lfs track <pattern> && git add .gitattributes",
 			Description: "Binary files changed without LFS - Git is not a landfill",
 			Priority:    85,
+			Severity:    "high",
+			Destructive: false,
 		},
 		{
 			ID:          "R044",
@@ -27,6 +31,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "git config core.autocrlf true (or false)",
 			Description: "Line ending normalization conflict - someone's editor declared war",
 			Priority:    82,
+			Severity:    "high",
+			Destructive: false,
 		},
 		{
 			ID:          "R045",
@@ -34,6 +40,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "cd <submodule> && git checkout <branch>",
 			Description: "Submodule detached HEAD - time capsule mode engaged",
 			Priority:    81,
+			Severity:    "high",
+			Destructive: false,
 		},
 		{
 			ID:          "R046",
@@ -41,6 +49,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "git fetch --unshallow",
 			Description: "Shallow clone doing history ops - Git will lie to you politely",
 			Priority:    80,
+			Severity:    "high",
+			Destructive: false,
 		},
 		{
 			ID:          "R006",
@@ -48,6 +58,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "git rebase origin/<branch> OR git merge origin/<branch>",
 			Description: "Branch has diverged - need to sync",
 			Priority:    80,
+			Severity:    "high",
+			Destructive: false,
 		},
 		{
 			ID:          "R034",
@@ -55,6 +67,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "git branch --set-upstream-to=origin/<branch>",
 			Description: "No upstream configured for current branch",
 			Priority:    75,
+			Severity:    "high",
+			Destructive: false,
 		},
 		{
 			ID:          "R031",
@@ -62,6 +76,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "git rebase origin/<branch>",
 			Description: "Feature branch diverged - rebase to keep linear history",
 			Priority:    70,
+			Severity:    "high",
+			Destructive: false,
 		},
 		{
 			ID:          "R035",
@@ -69,6 +85,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "git branch -d <branch>",
 			Description: "Merged branches ready for cleanup",
 			Priority:    65,
+			Severity:    "high",
+			Destructive: false,
 		},
 		{
 			ID:          "R036",
@@ -76,6 +94,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "git branch -d <branch>",
 			Description: "Gone remote branches - local cleanup needed",
 			Priority:    62,
+			Severity:    "high",
+			Destructive: false,
 		},
 		{
 			ID:          "R033",
@@ -83,6 +103,8 @@ func IntegrityRules() []RuleDef {
 			Command:     "git merge origin/<branch>",
 			Description: "Existing merge commits detected - continue with merge",
 			Priority:    60,
+			Severity:    "high",
+			Destructive: false,
 		},
 	}
 }

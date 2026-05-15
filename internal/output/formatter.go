@@ -10,8 +10,9 @@ import (
 	"github.com/VectorSophie/git-next/pkg/model"
 )
 
-// FormatHuman returns human-readable output
-func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config) string {
+// FormatHuman returns human-readable output.
+// showExplain adds a brief "why" line under each active rule (populated in Phase 3).
+func FormatHuman(advice []model.Advice, showSuppressed bool, cfg *config.Config, showExplain bool) string {
 	var sb strings.Builder
 
 	if len(advice) == 0 {

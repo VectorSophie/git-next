@@ -14,6 +14,8 @@ func WorkflowRules(cfg *config.Config) []RuleDef {
 			Command:     "git checkout -b feature/<name>",
 			Description: "Work on main instead of feature branch - you skipped the whole process part",
 			Priority:    58,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
 			ID:          "R048",
@@ -21,6 +23,8 @@ func WorkflowRules(cfg *config.Config) []RuleDef {
 			Command:     "git merge main (or rebase)",
 			Description: "Long-lived feature branch - merge debt accumulating interest",
 			Priority:    56,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
 			ID:          "R005",
@@ -28,6 +32,8 @@ func WorkflowRules(cfg *config.Config) []RuleDef {
 			Command:     "git pull",
 			Description: "Behind remote and clean - pull updates",
 			Priority:    55,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
 			ID:          "R049",
@@ -35,6 +41,8 @@ func WorkflowRules(cfg *config.Config) []RuleDef {
 			Command:     "git rebase -i HEAD~N",
 			Description: "Squash recommended before merge - many noisy commits",
 			Priority:    52,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
 			ID:          "R050",
@@ -42,6 +50,8 @@ func WorkflowRules(cfg *config.Config) []RuleDef {
 			Command:     "git commit --amend",
 			Description: "WIP commit on shared branch - this is not your personal notebook",
 			Priority:    51,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
 			ID:          "R051",
@@ -49,6 +59,8 @@ func WorkflowRules(cfg *config.Config) []RuleDef {
 			Command:     "git rebase main",
 			Description: "Rebase recommended instead of merge - keep linear history",
 			Priority:    50,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
 			ID:          "R004",
@@ -56,6 +68,8 @@ func WorkflowRules(cfg *config.Config) []RuleDef {
 			Command:     "git push",
 			Description: "Local commits ready to push",
 			Priority:    50,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
 			ID:          "R030",
@@ -63,20 +77,26 @@ func WorkflowRules(cfg *config.Config) []RuleDef {
 			Command:     "git pull --ff-only",
 			Description: "Can fast-forward - safe to pull",
 			Priority:    48,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
-			ID:    "R020",
-			Check: func(state model.RepoState) bool { return R020(state, cfg) },
+			ID:          "R020",
+			Check:       func(state model.RepoState) bool { return R020(state, cfg) },
 			Command:     "git reset --soft HEAD~N",
 			Description: "Local commits (≤3) can be soft reset",
 			Priority:    45,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
-			ID:    "R022",
-			Check: func(state model.RepoState) bool { return R022(state, cfg) },
+			ID:          "R022",
+			Check:       func(state model.RepoState) bool { return R022(state, cfg) },
 			Command:     "git rebase -i HEAD~N",
 			Description: "Too many local commits - use interactive rebase",
 			Priority:    42,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
 			ID:          "R003",
@@ -84,6 +104,8 @@ func WorkflowRules(cfg *config.Config) []RuleDef {
 			Command:     "git commit",
 			Description: "Staged files waiting for commit",
 			Priority:    38,
+			Severity:    "medium",
+			Destructive: false,
 		},
 		{
 			ID:          "R002",
@@ -91,6 +113,8 @@ func WorkflowRules(cfg *config.Config) []RuleDef {
 			Command:     "git add <files> && git commit",
 			Description: "Modified files not staged",
 			Priority:    35,
+			Severity:    "medium",
+			Destructive: false,
 		},
 	}
 }

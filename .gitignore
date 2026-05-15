@@ -1,3 +1,4 @@
 /dist
-/bin.claude/
+/bin
+.claude/
 git-next.exe

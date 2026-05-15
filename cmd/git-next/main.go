@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/VectorSophie/git-next/internal/action"
 	"github.com/VectorSophie/git-next/internal/config"
@@ -19,14 +20,40 @@ var (
 )
 
 func main() {
+	// Dispatch subcommands before flag parsing so they can manage their own flags.
+	if len(os.Args) > 1 && !strings.HasPrefix(os.Args[1], "-") {
+		switch os.Args[1] {
+		case "guard":
+			runGuard(os.Args[2:])
+			return
+		case "hook":
+			runHook(os.Args[2:])
+			return
+		case "ci":
+			runCI(os.Args[2:])
+			return
+		case "explain":
+			runExplain(os.Args[2:])
+			return
+		case "rules":
+			runRules(os.Args[2:])
+			return
+		case "completion":
+			runCompletion(os.Args[2:])
+			return
+		}
+	}
+
 	var (
-		showVersion    bool
-		showAll        bool
-		formatJSON     bool
-		formatCompact  bool
-		showDebug      bool
+		showVersion       bool
+		showAll           bool
+		formatJSON        bool
+		formatCompact     bool
+		agentMode         bool
+		showDebug         bool
+		showExplain       bool
 		interactiveAction bool
-		configPath     string
+		configPath        string
 	)
 
 	flag.BoolVar(&showVersion, "version", false, "Show version information")
@@ -35,7 +62,9 @@ func main() {
 	flag.BoolVar(&showAll, "a", false, "Show suppressed advice (shorthand)")
 	flag.BoolVar(&formatJSON, "json", false, "Output in JSON format")
 	flag.BoolVar(&formatCompact, "compact", false, "Output compact one-line summary")
+	flag.BoolVar(&agentMode, "agent", false, "Output agent-compatible JSON for coding assistants and CI bots")
 	flag.BoolVar(&showDebug, "debug", false, "Show debug information (repo state)")
+	flag.BoolVar(&showExplain, "explain", false, "Show explanation for each active rule")
 	flag.BoolVar(&interactiveAction, "action", false, "Interactive mode to execute suggested actions")
 	flag.StringVar(&configPath, "config", "", "Path to config file (default: .git-next.yaml or ~/.config/git-next/config.yaml)")
 
@@ -44,24 +73,33 @@ func main() {
 
 Usage:
   git-next [options]
+  git-next <subcommand> [args]
 
 Options:
   -v, --version     Show version information
   -a, --all         Show suppressed advice
   --json            Output in JSON format
   --compact         Output compact one-line summary
+  --agent           Machine-readable JSON for coding agents and CI bots
+  --explain         Show explanation for each active rule
   --debug           Show debug information (repo state)
   --action          Interactive mode to execute suggested actions
 
-Examples:
-  git-next                    # Show current advice
-  git-next --all              # Show all advice including suppressed
-  git-next --json             # Output as JSON
-  git-next --compact          # Show compact summary
-  git-next --action           # Interactive mode to execute actions
+Subcommands:
+  guard -- <cmd>    Check whether a git command is safe to run
+  hook              Install/uninstall/list git hooks (hook install --hook pre-push)
+  ci                Run as a CI gate (--fail-on critical|high|medium|low)
+  explain <rule>    Show full explanation for a rule (e.g. explain R037)
+  rules list        List all rules with severity and metadata
+  completion        Print shell completion script (bash|zsh|fish)
 
-The tool never lies. It analyzes your repository state and suggests
-the least harmful move based on who has the history.
+Examples:
+  git-next                         # Show current advice
+  git-next --agent                 # Machine-readable output for AI agents
+  git-next guard -- git push -f    # Check whether a command is safe
+  git-next ci --fail-on high       # CI gate, fail on high+ severity
+  git-next hook install            # Install pre-push hook
+  git-next explain R037            # Explain a specific rule
 
 `)
 	}
@@ -136,7 +174,14 @@ the least harmful move based on who has the history.
 
 	// Format output
 	var outputStr string
-	if formatJSON {
+	if agentMode {
+		var err error
+		outputStr, err = output.FormatAgent(advice)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error formatting agent output: %v\n", err)
+			os.Exit(1)
+		}
+	} else if formatJSON {
 		var err error
 		outputStr, err = output.FormatJSON(advice)
 		if err != nil {
@@ -146,7 +191,7 @@ the least harmful move based on who has the history.
 	} else if formatCompact {
 		outputStr = output.FormatCompact(advice)
 	} else {
-		outputStr = output.FormatHuman(advice, showAll, cfg, false)
+		outputStr = output.FormatHuman(advice, showAll, cfg, showExplain)
 	}
 
 	fmt.Print(outputStr)

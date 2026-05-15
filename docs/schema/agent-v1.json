@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/VectorSophie/git-next/blob/main/docs/schema/agent-v1.json",
+  "title": "git-next agent output (schema_version: 1)",
+  "description": "Output schema for `git-next --agent`. Stable across patch versions within schema_version 1.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "risk_level",
+    "summary",
+    "allowed_commands",
+    "blocked_commands",
+    "rules_triggered"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1",
+      "description": "Schema version. Increment when breaking changes are made to the output shape."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["safe", "caution", "unsafe", "critical"],
+      "description": "Overall repository safety status derived from the highest-severity active rule."
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["safe", "low", "medium", "high", "critical"],
+      "description": "Risk level matching the Severity of the highest-priority active rule."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable summary of all active rule descriptions, joined by semicolons."
+    },
+    "recommended_next_command": {
+      "type": "string",
+      "description": "The command from the highest-priority active rule that is not a comment or OR-choice. Omitted when the repo is clean or when no unambiguous command exists."
+    },
+    "allowed_commands": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Git commands that are safe to run given the current state. Always includes baseline read-only commands (git status, git log, git diff, etc.). Excludes commands in blocked_commands."
+    },
+    "blocked_commands": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Git commands that the active rules prohibit. Derived from the rule-to-command mapping in internal/output/agent.go."
+    },
+    "rules_triggered": {
+      "type": "array",
+      "description": "All active (non-suppressed) rules that fired, in priority order (highest first).",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "description", "destructive"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^R[0-9]+$",
+            "description": "Rule identifier, e.g. R037."
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low", "info"],
+            "description": "Danger tier of the rule."
+          },
+          "description": {
+            "type": "string",
+            "description": "Short human-readable description of the rule."
+          },
+          "destructive": {
+            "type": "boolean",
+            "description": "True if the suggested command can rewrite or permanently delete history."
+          }
+        }
+      }
+    }
+  }
+}

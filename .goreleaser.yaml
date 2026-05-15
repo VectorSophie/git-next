@@ -66,25 +66,33 @@ release:
   draft: false
   prerelease: auto
 
-# brews:
-#   - repository:
-#       owner: VectorSophie
-#       name: homebrew-tap
-#     directory: Formula
-#     homepage: https://github.com/VectorSophie/git-next
-#     description: "Git advice that doesn't lie"
-#     license: MIT
-#     test: |
-#       system "#{bin}/git-next --version"
-#     install: |
-#       bin.install "git-next"
+brews:
+  - repository:
+      owner: VectorSophie
+      name: homebrew-tap
+      # Requires a HOMEBREW_TAP_GITHUB_TOKEN secret with repo write access
+      # to github.com/VectorSophie/homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: https://github.com/VectorSophie/git-next
+    description: "A deterministic Git safety oracle for humans, CI, and coding agents"
+    license: MIT
+    test: |
+      system "#{bin}/git-next --version"
+    install: |
+      bin.install "git-next"
+    extra_install: |
+      # Shell completions
+      bash_completion.install Utils.safe_popen_read("#{bin}/git-next", "completion", "bash") => "git-next"
+      zsh_completion.install Utils.safe_popen_read("#{bin}/git-next", "completion", "zsh") => "_git-next"
+      fish_completion.install Utils.safe_popen_read("#{bin}/git-next", "completion", "fish") => "git-next.fish"
 
 nfpms:
   - id: git-next
     package_name: git-next
     file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}"
     homepage: https://github.com/VectorSophie/git-next
-    description: "Git advice that doesn't lie"
+    description: "A deterministic Git safety oracle for humans, CI, and coding agents"
     maintainer: VectorSophie <jay7math.com>
     license: MIT
     vendor: VectorSophie

@@ -99,6 +99,48 @@ git-next --agent
 
 See [`docs/AGENT_USAGE.md`](docs/AGENT_USAGE.md) for integration examples with Claude Code, GitHub Actions, and shell aliases.
 
+### MCP server (Claude Code / AI agents)
+
+`git-next` ships as an MCP server, letting Claude Code and other agents inspect your repo and run git commands safely without leaving the AI session.
+
+**Install for a single project** — add `.mcp.json` to your repo root (already included in this repo):
+
+```json
+{
+  "mcpServers": {
+    "git-next": { "command": "git-next", "args": ["mcp"] }
+  }
+}
+```
+
+**Install globally** (available in all your projects):
+
+```bash
+claude mcp add --transport stdio --scope user git-next -- git-next mcp
+```
+
+**Tools exposed to the agent:**
+
+| Tool | What it does |
+|---|---|
+| `git_status` | Full repo state + prioritized advice. Call this first. |
+| `git_guard` | Check if a command is safe. Never executes. |
+| `git_run` | Run a git command with SAFE / GUARDED / BLOCKED enforcement. |
+| `git_explain` | Full explanation of any rule ID (e.g. `R037`). |
+| `git_diff` | Staged or unstaged diff (optionally filtered to one file). |
+| `git_log` | Recent commit history as structured JSON. |
+| `git_remote_status` | Ahead/behind vs remote (explicit network call). |
+
+**`git_run` safety model:**
+
+- **SAFE** (status, log, diff, add, fetch, commit) → executes immediately
+- **GUARDED** (push, merge, rebase, commit --amend, stash pop) → returns `requires_confirmation: true`; agent calls again with `confirmed: true` to proceed
+- **BLOCKED** (force-push, filter-branch, reset --hard on protected branch, etc.) → never executes, returns reason + safer alternative
+
+```bash
+git-next mcp    # start the MCP server (Claude Code manages the process)
+```
+
 ### Guard mode
 
 Check whether a command is safe before running it:
@@ -361,6 +403,7 @@ internal/
   hook/                 Git hook installer
   explain/              Rule explanation text (all 58 rules)
   completion/           Shell completion scripts
+  mcp/                  MCP server (classifier, executor, tools, JSON-RPC server)
   testutil/             Synthetic git repo builder for tests
 pkg/model/              Shared types (RepoState, Advice, AgentOutput)
 docs/

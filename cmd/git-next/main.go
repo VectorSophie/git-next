@@ -41,6 +41,9 @@ func main() {
 		case "completion":
 			runCompletion(os.Args[2:])
 			return
+		case "mcp":
+			runMCP(os.Args[2:])
+			return
 		}
 	}
 

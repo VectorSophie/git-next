@@ -1,0 +1,67 @@
+{
+  "manifest_version": "0.3",
+  "name": "git-next",
+  "display_name": "git-next",
+  "version": "0.5.0",
+  "description": "Git safety oracle for AI agents — inspects repo state, blocks dangerous commands, and tells you what to do next.",
+  "long_description": "git-next analyzes your git repository state and surfaces prioritized advice, from 'dangerous, stop immediately' down to 'mild suggestion'. For AI agents it exposes 7 MCP tools: **git_status** for full repo analysis, **git_guard** for pre-flight command checking, **git_run** with a SAFE/GUARDED/BLOCKED execution model (guarded commands like push/merge require explicit confirmation; blocked commands like force-push on protected branches are never executed), **git_explain** for rule explanations, **git_diff**, **git_log**, and **git_remote_status**. Zero configuration required — works in any git repository.",
+  "author": {
+    "name": "VectorSophie",
+    "url": "https://github.com/VectorSophie"
+  },
+  "homepage": "https://github.com/VectorSophie/git-next",
+  "repository": "https://github.com/VectorSophie/git-next",
+  "documentation": "https://github.com/VectorSophie/git-next#mcp-server-claude-code--ai-agents",
+  "support": "https://github.com/VectorSophie/git-next/issues",
+  "license": "MIT",
+  "keywords": ["git", "safety", "guard", "agent", "devtools", "mcp"],
+  "server": {
+    "type": "binary",
+    "entry_point": "bin/git-next-darwin",
+    "mcp_config": {
+      "command": "${__dirname}/bin/git-next-darwin",
+      "args": ["mcp"],
+      "platform_overrides": {
+        "linux": {
+          "command": "${__dirname}/bin/git-next-linux"
+        },
+        "win32": {
+          "command": "${__dirname}/bin/git-next.exe"
+        }
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "git_status",
+      "description": "Inspect current repo state and get prioritized advice. Call this first before running any git commands."
+    },
+    {
+      "name": "git_guard",
+      "description": "Check whether a proposed git command is safe to run given current repo state. Never executes."
+    },
+    {
+      "name": "git_run",
+      "description": "Run a git command with SAFE/GUARDED/BLOCKED safety enforcement. Guarded commands require confirmed=true; blocked commands are never executed."
+    },
+    {
+      "name": "git_explain",
+      "description": "Get a full explanation of a git-next rule ID — why it matters and what to do instead."
+    },
+    {
+      "name": "git_diff",
+      "description": "Get staged or unstaged diff, optionally filtered to a single file."
+    },
+    {
+      "name": "git_log",
+      "description": "Get recent commit history as structured JSON."
+    },
+    {
+      "name": "git_remote_status",
+      "description": "Check ahead/behind count vs remote branch. Makes a network call — use explicitly."
+    }
+  ],
+  "compatibility": {
+    "claude_desktop": ">=0.10.0"
+  }
+}
